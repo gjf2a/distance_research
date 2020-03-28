@@ -1,5 +1,5 @@
 use crate::mnist_data::{Image, image_mean, Grid};
-use crate::kmeans;
+use kmeans;
 use decorum::R64;
 use crate::euclidean_distance::euclidean_distance;
 

@@ -1,18 +1,13 @@
 mod mnist_data;
-mod training_harness;
-mod knn;
-mod hash_histogram;
 mod euclidean_distance;
 mod permutation;
 mod brief;
-mod kmeans;
 mod patch;
 mod convolutional;
-mod bits;
 mod timing;
 
 use std::io;
-use crate::training_harness::Classifier;
+use supervised_learning::Classifier;
 use crate::mnist_data::Image;
 use std::env;
 use std::collections::{HashSet, BTreeMap, HashMap};

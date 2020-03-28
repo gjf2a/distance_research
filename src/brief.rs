@@ -1,9 +1,9 @@
 use crate::mnist_data::{Image, ImageIterator, Grid};
 use rand_distr::{Normal, Distribution};
 use rand::prelude::ThreadRng;
-use crate::bits::BitArray;
+use bits::BitArray;
 use rand::distributions::Uniform;
-use crate::hash_histogram::HashHistogram;
+use hash_histogram::HashHistogram;
 
 #[derive(Clone)]
 pub struct Descriptor {
