@@ -24,6 +24,7 @@ const K: usize = 7;
 const PATCH_SIZE: usize = 3;
 const NUM_NEIGHBORS: usize = 8;
 const CLASSIC_BRIEF_PAIRS: usize = mnist_data::IMAGE_DIMENSION * mnist_data::IMAGE_DIMENSION * NUM_NEIGHBORS;
+const EQUIDISTANT_OFFSET: usize = mnist_data::IMAGE_DIMENSION / 3;
 
 const HELP: &str = "help";
 const SHRINK: &str = "shrink";
@@ -38,6 +39,7 @@ const PATCH: &str = "patch";
 const UNIFORM_NEIGHBORS: &str = "uniform_neighbors";
 const GAUSSIAN_NEIGHBORS: &str = "gaussian_neighbors";
 const GAUSSIAN_7: &str = "gaussian_7";
+const EQUIDISTANT_BRIEF: &str = "equidistant";
 
 fn main() -> io::Result<()> {
     let args: HashSet<String> = env::args().collect();
@@ -66,6 +68,8 @@ fn help_message() {
     println!("\t{}: Uniform neighbor BRIEF", UNIFORM_NEIGHBORS);
     println!("\t{}: Gaussian neighbor BRIEF (stdev 1/3 side)", GAUSSIAN_NEIGHBORS);
     println!("\t{}: Gaussian neighbor BRIEF (stdev 1/7 side)", GAUSSIAN_7);
+    println!("These variants are subsequent to the FLAIRS-2020 paper:");
+    println!("\t{}: Equidistant BRIEF, where each pair consists of a pixel and another at a fixed x,y offset", EQUIDISTANT_BRIEF);
 }
 
 fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
@@ -105,6 +109,7 @@ fn run_experiments(args: &HashSet<String>, training_images: Vec<(u8,Image)>, tes
     data.add_descriptor(UNIFORM_NEIGHBORS, brief::Descriptor::uniform_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
     data.add_descriptor(GAUSSIAN_NEIGHBORS, brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION / 3, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
     data.add_descriptor(GAUSSIAN_7, brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION / 7, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
+    data.add_descriptor(EQUIDISTANT_BRIEF, brief::Descriptor::equidistant(mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION, EQUIDISTANT_OFFSET, EQUIDISTANT_OFFSET));
 
     data.run_all_tests_with(&args);
 
@@ -202,6 +207,9 @@ impl ExperimentData {
         }
         if args.contains(GAUSSIAN_7) {
             self.build_and_test_descriptor(GAUSSIAN_7);
+        }
+        if args.contains(EQUIDISTANT_BRIEF) {
+            self.build_and_test_descriptor(EQUIDISTANT_BRIEF);
         }
         if args.contains(PATCH) {
             self.build_and_test_patch(PATCH, PATCH_SIZE);
