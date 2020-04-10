@@ -1,0 +1,18 @@
+[package]
+name = "distance_research"
+version = "0.1.0"
+authors = ["gjf2a <ferrer@hendrix.edu>"]
+edition = "2018"
+
+[profile.release]
+overflow-checks = true
+
+[dependencies]
+decorum = "0.1"
+rand = "0.7"
+rand_distr = "0.2"
+bits = {git = "https://github.com/gjf2a/bits"}
+hash_histogram = {git = "https://github.com/gjf2a/hash_histogram"}
+kmeans = {git = "https://github.com/gjf2a/kmeans"}
+supervised_learning = {git = "https://github.com/gjf2a/supervised_learning"}
+knn = {git = "https://github.com/gjf2a/knn"}
