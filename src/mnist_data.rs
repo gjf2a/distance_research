@@ -1,7 +1,10 @@
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::ops::{AddAssign, Add};
+use std::ops::{AddAssign, Add, DerefMut, Deref};
+use std::iter::FromIterator;
+use bits::BitArray;
+
 
 pub const IMAGE_DIMENSION: usize = 28;
 pub const IMAGE_BYTES: usize = IMAGE_DIMENSION * IMAGE_DIMENSION;
@@ -12,7 +15,14 @@ pub struct Image {
     side_size: usize,
 }
 
-pub trait Grid<T> {
+//Image implements this trait
+//refactor convolutional to something implements Grid
+//Grid<boolean> for BitArray
+//BitImage -> wrapper around BitArray
+//abstact distance thing for calculating the distances
+//migrate the subimage to a grid
+
+pub trait Grid<T: Default> {
     fn add(&mut self, pixel: T);
     fn get(&self, x: usize, y: usize) -> T;
     fn side(&self) -> usize;
@@ -32,6 +42,31 @@ pub trait Grid<T> {
 
     fn x_y_step_iter(&self, step_size: usize) -> ImageIterator<usize> {
         ImageIterator::new(0, 0, self.side(), self.side(), step_size)
+    }
+
+    fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> Self;
+
+}
+
+impl Grid<bool> for BitArray{
+    fn add(&mut self, pixel: bool) {
+        unimplemented!()
+    }
+
+    fn get(&self, x: usize, y: usize) -> bool {
+        unimplemented!()
+    }
+
+    fn side(&self) -> usize {
+        unimplemented!()
+    }
+
+    fn len(&self) -> usize {
+        unimplemented!()
+    }
+
+    fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
+        unimplemented!()
     }
 }
 
@@ -55,7 +90,16 @@ impl Grid<u8> for Image {
     fn len(&self) -> usize {
         self.pixels.len()
     }
+
+    fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> Image {
+        let mut result = Image::new();
+        ImageIterator::centered(x_center as isize, y_center as isize, side as isize, side as isize, 1)
+            .for_each(|(x, y)| result.add(self.option_get(x, y).unwrap_or(0)));
+        assert_eq!(side, result.side());
+        result
+    }
 }
+
 
 impl Image {
     pub fn new() -> Self {
@@ -136,6 +180,7 @@ pub fn image_mean(images: &Vec<Image>) -> Image {
     }
     result
 }
+
 
 pub struct ImageIterator<N> {
     width: N,
