@@ -4,6 +4,9 @@ use std::io::Read;
 use std::ops::{AddAssign, Add, DerefMut, Deref};
 use std::iter::FromIterator;
 use bits::BitArray;
+use decorum::{R64, Primitive, ConstrainedFloat, Real};
+use rand_distr::Float;
+
 
 
 pub const IMAGE_DIMENSION: usize = 28;
@@ -28,6 +31,7 @@ pub trait Grid<T: Default> {
     fn side(&self) -> usize;
     fn len(&self) -> usize;
 
+
     fn in_bounds(&self, x: isize, y: isize) -> bool {
         x >= 0 && y >= 0 && x < self.side() as isize && y < self.side() as isize
     }
@@ -46,6 +50,9 @@ pub trait Grid<T: Default> {
 
     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> Self;
 
+    fn default(&self) -> Self;
+
+    fn pixelize(&self, distance: R64, kernel_size: usize) -> T;
 }
 
 impl Grid<bool> for BitArray{
@@ -66,6 +73,14 @@ impl Grid<bool> for BitArray{
     }
 
     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
+        unimplemented!()
+    }
+
+    fn default(&self) -> Self {
+        unimplemented!()
+    }
+
+    fn pixelize(&self, distance: R64, kernel_size: usize) -> bool{
         unimplemented!()
     }
 }
@@ -91,12 +106,25 @@ impl Grid<u8> for Image {
         self.pixels.len()
     }
 
+
     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> Image {
         let mut result = Image::new();
         ImageIterator::centered(x_center as isize, y_center as isize, side as isize, side as isize, 1)
             .for_each(|(x, y)| result.add(self.option_get(x, y).unwrap_or(0)));
         assert_eq!(side, result.side());
         result
+    }
+
+    fn default (&self) -> Image{
+        Image::new()
+    }
+
+    fn pixelize(&self, distance: R64, kernel_size: usize) -> u8{
+        let max_distance = ((std::u8::MAX as f64).powf(2.0) * (KERNEL_SIZE.pow(2) as f64)).powf(0.5);
+        let distance_to_pixel_scale = (std::u8::MAX as f64) / max_distance;
+        //(units squared) * (the scaling factor) = to fit into the 255
+        (distance.into_inner().powf(0.5) * distance_to_pixel_scale) as u8
+
     }
 }
 
@@ -163,6 +191,7 @@ impl PartialEq for Image {
 }
 
 impl Eq for Image {}
+
 
 pub fn image_mean(images: &Vec<Image>) -> Image {
     assert!(!images.is_empty());

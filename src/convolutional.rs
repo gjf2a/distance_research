@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use crate::mnist_data::{Image, image_mean, Grid};
 use kmeans;
-use decorum::R64;
+use decorum::{R64, Real};
 use crate::euclidean_distance::euclidean_distance;
 use itertools::{cloned, Itertools};
 use std::fmt::Debug;
@@ -13,26 +13,29 @@ const NUM_KERNELS: usize = 8;
 const KERNEL_SIZE: usize = 3;
 const STRIDE: usize = 2;
 
+
 ///TODO: generalize this kernalize all to take in label images as &Vec(u8, BitArray) or &Vec(u8, BinarizedImage)
 /// generic of Grid<T>
 
-pub fn kernelize_all<D: Clone + Default, T: Grid<D> + Clone + Eq>(labeled_images: &Vec<(u8, T)>, levels: usize) -> Vec<(u8, Vec<T>)>{
+pub fn kernelize_all
+    <D: Clone + Default, T: Grid<D> + Clone + Eq, V: Copy + Eq + Ord + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
+    (labeled_images: &Vec<(u8, T)>, levels: usize, distance: F, mean: M) -> Vec<(u8, Vec<T>)>{
     let mut images: Vec<Rc<T>>= Vec::new();
     for (_, img) in labeled_images{
         images.push(Rc::new(img.clone()));
     }
-   let kernels = extract_kernels_from(&images, NUM_KERNELS, KERNEL_SIZE);
+   let kernels = extract_kernels_from(&images, NUM_KERNELS, KERNEL_SIZE, distance, mean);
 
-    let mut kernelized: Vec<(u8,Vec<T>)> = Vec::new();
+    let mut kernelized: Vec<(u8,Vec<Rc<T>>)> = Vec::new();
     for (label, img) in labeled_images{
-        kernelized.push((*label, vec![img.clone()]))
+        kernelized.push((*label, vec![Rc::new(img.clone())]))
     }
     //if kernels returns 8 convoluted images then kernalized contains for each labeled image a vec of the convolutions of each kernal
 
     //kernalized would be a Vec < Label, 8 convoluted images of the current labeled image> and we return this
-    // for _ in 0..levels {
-    //     kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels))).collect();
-    // }
+    for _ in 0..levels {
+        // kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels, &distance))).collect_vec();
+    }
     // kernelized
 
     let mut img = Image::new();
@@ -41,33 +44,26 @@ pub fn kernelize_all<D: Clone + Default, T: Grid<D> + Clone + Eq>(labeled_images
     temp
 }
 
-// pub fn kernelize_all(labeled_images: &Vec<(u8,Image)>, levels: usize) -> Vec<(u8,Vec<Image>)> {
-//     let kernels = extract_kernels_from(&(labeled_images.iter().map(|(_,img)| img.clone()).collect()), NUM_KERNELS, KERNEL_SIZE);
-//     let mut kernelized: Vec<(u8,Vec<Image>)> = labeled_images.iter().map(|(label, img)| (*label, vec![img.clone()])).collect();
-//     //if kernels returns 8 convoluted images then kernalized contains for each labeled image a vec of the convolutions of each kernal
-//     //kernalized would be a Vec < Label, 8 convoluted images of the current labeled image> and we return this
-//     for _ in 0..levels {
-//         kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels))).collect();
-//     }
-//     kernelized
-// }
-
+//NOTE: This doesn't need to be changed
 pub fn kernelized_distance(k1: &Vec<Image>, k2: &Vec<Image>) -> R64 {
     assert_eq!(k1.len(), k2.len());
     (0..k1.len()).map(|i| euclidean_distance(&k1[i], &k2[i])).sum()
+
 }
 
-pub fn extract_kernels_from<D: Clone + Default, T: Grid<D> + Clone + Eq>
-                            (images: &Vec<Rc<T>>, num_kernels: usize, kernel_size: usize) -> Vec<T> {
+pub fn extract_kernels_from
+    <D: Clone + Default, T: Grid<D> + Clone + Eq, V: Copy + Eq + Ord + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
+    (images: &Vec<Rc<T>>, num_kernels: usize, kernel_size: usize, distance: F, mean: M) -> Vec<T> {
     let mut candidates: Vec<T> = Vec::new();
     for img in images.iter() {
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
-    
-    kmeans::Kmeans::new(num_kernels, &candidates.to_owned(), euclidean_distance, image_mean).move_means()
+
+    kmeans::Kmeans::new(num_kernels, &candidates.to_owned(), distance, mean).move_means()
 }
 
-pub fn project_all_through(images: &Vec<Image>, kernels: &Vec<Image>) -> Vec<Image> {
+pub fn project_all_through<D: Clone + Default, T: Grid<D> + Clone + Eq, V: Copy + Eq + Ord + Into<f64>, F:Fn(&T,&T) -> V>
+                        (images: &Vec<Rc<T>>, kernels: &Vec<T>, distance: &F) -> Vec<T> {
     let mut result = Vec::new();
     //takes the vec of images and then iterates over all images
     //for each image we apply project image through
@@ -75,30 +71,51 @@ pub fn project_all_through(images: &Vec<Image>, kernels: &Vec<Image>) -> Vec<Ima
     //for each kernel we apply all kernels in the Vec to the current image
     //the kernels are created from all images as subimages
     for img in images.iter() {
-        result.append(&mut project_image_through(img, kernels));
+        result.append(&mut project_image_through(img.to_owned(), kernels, &distance));
     }
     result
 }
 
-pub fn project_image_through(img: &Image, kernels: &Vec<Image>) -> Vec<Image> {
+pub fn project_image_through<D: Clone + Default, T: Grid<D> + Clone + Eq, V: Copy + Eq + Ord + Into<f64>, F:Fn(&T,&T) -> V>
+                            (img: Rc<T>, kernels: &Vec<T>, distance: &F) -> Vec<T> {
     //this returns a list of convolved images for each kernel of the one current image
-    kernels.iter().map(|kernel| apply_kernel_to(img, kernel)).collect()
+    kernels.iter().map(|kernel| apply_kernel_to(&img, kernel, &distance)).collect_vec()
 }
 
-pub fn apply_kernel_to(img: &Image, kernel: &Image) -> Image {
-    //this is the actual convolution of image and kernel
-    assert_eq!(kernel.side(), KERNEL_SIZE);
-    let mut result = Image::new();
-    for (x, y) in img.x_y_step_iter(STRIDE) {
-        //we find the distance between the current subimage with the current kernel
-        //which is the same for all subimages looped through
-        //pixelize just converts the distance to a u8 using propotions of u8 and f64 sizes somehow????
-        result.add(pixelize(euclidean_distance(&img.subimage(x, y, KERNEL_SIZE), kernel)));
-        //TODO: generalize this distance function to work with any Fn(Image, Image) -> R64
-        // euclidean_distance becomes hamming distance
+pub fn apply_kernel_to<D: Clone + Default, T: Grid<D> + Clone + Eq, V: Copy + Eq + Ord + Into<f64>, F:Fn(&T,&T) -> V>
+                        (img: &Rc<T>, kernel: &T, distancefn: &F) -> T {
+    let mut result = img.default();
+    //create a default clone that creates an empty struct
+    for(x, y) in img.x_y_step_iter(STRIDE){
+        let subimg = &img.subimage(x, y, KERNEL_SIZE);
+        let distance  = distancefn(subimg, kernel);
+        result.add(img.pixelize(distance, KERNEL_SIZE));
+        //result.add(pixelize(euclidean_distance(&img.subimage(x, y, KERNEL_SIZE), kernel)));
     }
     result
 }
+
+
+
+// pub fn apply_kernel_to(img: &Image, kernel: &Image) -> Image {
+//     //this is the actual convolution of image and kernel
+//     assert_eq!(kernel.side(), KERNEL_SIZE);
+
+//     let mut result = Image::new();
+
+//     for (x, y) in img.x_y_step_iter(STRIDE) {
+
+//         //we find the distance between the current subimage with the current kernel
+//         //which is the same for all subimages looped through
+//         //pixelize just converts the distance to a u8 using propotions of u8 and f64 sizes somehow????
+
+//         result.add(pixelize(euclidean_distance(&img.subimage(x, y, KERNEL_SIZE), kernel)));
+
+//         //TODO: generalize this distance function to work with any Fn(Image, Image) -> R64
+//         // euclidean_distance becomes hamming distance
+//     }
+//     result
+// }
 
 //make generic to something else than u8
 //take a distance and turn it into a bit
@@ -132,7 +149,7 @@ mod tests {
     #[test]
     fn test_kernels() {
         let img = Image::from_vec(&(1..10).collect());
-        let filters = extract_kernels_from(&vec![img], 4, 2);
+        let filters = extract_kernels_from(&vec![img], 4, 2, euclidean_distance, image_mean);
         let filter_means: Vec<u8> = filters.iter().map(|f| f.pixel_mean()).collect();
 
         let target_means_1: Vec<u8> = vec![3, 0, 6, 1];
