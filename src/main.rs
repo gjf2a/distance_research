@@ -1,3 +1,5 @@
+#![feature(in_band_lifetimes)]
+
 mod mnist_data;
 mod euclidean_distance;
 mod permutation;
@@ -8,17 +10,18 @@ mod timing;
 
 use std::io;
 use supervised_learning::Classifier;
-use crate::mnist_data::Image;
+use crate::mnist_data::{Image, image_mean};
 use std::env;
 use std::collections::{HashSet, BTreeMap, HashMap};
 use crate::brief::Descriptor;
 use crate::convolutional::{kernelize_all, kernelized_distance};
+use crate::euclidean_distance::euclidean_distance;
 use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
-const BASE_PATH: &str = "/Users/ferrer/Desktop/mnist_data/";
+const BASE_PATH: &str = "/home/david86/Y3C/DistanceMetrics/distance_research/mnist_data/";
 const SHRINK_FACTOR: usize = 50;
 const K: usize = 7;
 const PATCH_SIZE: usize = 3;
@@ -75,6 +78,12 @@ fn help_message() {
 fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
     let mut training_images = load_data_set("train")?;
     let mut testing_images = load_data_set("t10k")?;
+    //NOTES:
+    //      load_data_set returns a vec of a pair, u8 (labels) and Image
+    //      see mnist_data for loading from file
+    //      permute: runs additional experiment that permutes image pixels
+    //      shrink: Use only 1 out of 50 training/testing images
+    //      sequence: Use 1/50, 1/20, 1/10, 1/5, and 1/2 training/testing images
 
     if args.contains(SEQ) {
         for shrink in SHRINK_SEQUENCE.iter() {
@@ -132,8 +141,10 @@ fn load_data_set(file_prefix: &str) -> io::Result<Vec<(u8,Image)>> {
     let train_images = format!("{}{}-images-idx3-ubyte", BASE_PATH, file_prefix);
     let train_labels = format!("{}{}-labels-idx1-ubyte", BASE_PATH, file_prefix);
 
+
     let training_images = print_time_milliseconds(&format!("loading mnist {} images", file_prefix),
         || mnist_data::init_from_files(train_images.as_str(), train_labels.as_str()))?;
+
 
     println!("Number of {} images: {}", file_prefix, training_images.len());
     Ok(training_images)
@@ -158,12 +169,13 @@ pub struct ExperimentData {
 }
 
 impl ExperimentData {
-    pub fn build_and_test_model<I: Clone, M: Copy + Eq + Ord, C: Fn(&Image) -> I, D: Fn(&I,&I) -> M>
+    pub fn build_and_test_model<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Image) -> I, D: Fn(&I,&I) -> M>
     (&mut self, label: &str, conversion: C, distance: D) {
+        //instead of convert all, it does the conversion as well as the convolution
         self.build_and_test_converting_all(label, |v| convert_all(v, &conversion), distance);
     }
 
-    pub fn build_and_test_converting_all<I: Clone, M: Copy + Eq + Ord, C: Fn(&Vec<(u8,Image)>) -> Vec<(u8,I)>, D: Fn(&I,&I) -> M>
+    pub fn build_and_test_converting_all<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Vec<(u8,Image)>) -> Vec<(u8,I)>, D: Fn(&I,&I) -> M>
     (&mut self, label: &str, conversion: C, distance: D) {
         let training_images = print_time_milliseconds(&format!("converting training images to {}", label),
                                                       || conversion(&self.training));
@@ -171,6 +183,7 @@ impl ExperimentData {
         let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
                                                      || conversion(&self.testing));
 
+        //distance is a function of Fn(&I,&I) -> Some distance value of M type
         let mut model = knn::Knn::new(K, distance);
         print_time_milliseconds(&format!("training {} model (k={})", label, K),
                                 || model.train(&training_images));
@@ -215,7 +228,9 @@ impl ExperimentData {
             self.build_and_test_patch(PATCH, PATCH_SIZE);
         }
         if args.contains(CONVOLUTIONAL_1) {
-            self.build_and_test_converting_all(CONVOLUTIONAL_1, |images| kernelize_all(images, 1), kernelized_distance);
+            self.build_and_test_converting_all(CONVOLUTIONAL_1,
+                                               |images| kernelize_all(images, 1,
+                                                                      euclidean_distance, image_mean), kernelized_distance);
         }
     }
 

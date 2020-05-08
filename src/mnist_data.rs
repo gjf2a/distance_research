@@ -1,11 +1,8 @@
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::ops::{AddAssign, Add, DerefMut, Deref};
-use std::iter::FromIterator;
+use std::ops::{AddAssign, Add};
 use bits::BitArray;
-use decorum::{R64, Primitive, ConstrainedFloat, Real};
-use rand_distr::Float;
 
 
 
@@ -25,7 +22,9 @@ pub struct Image {
 //abstact distance thing for calculating the distances
 //migrate the subimage to a grid
 
-pub trait Grid<T: Default> {
+
+pub trait Grid<T: Default, DIS=Self> {
+
     fn add(&mut self, pixel: T);
     fn get(&self, x: usize, y: usize) -> T;
     fn side(&self) -> usize;
@@ -52,40 +51,42 @@ pub trait Grid<T: Default> {
 
     fn default(&self) -> Self;
 
-    fn pixelize(&self, distance: R64, kernel_size: usize) -> T;
+    fn pixelize(&self, distance: DIS, kernel_size: usize) -> T;
 }
 
-impl Grid<bool> for BitArray{
-    fn add(&mut self, pixel: bool) {
-        unimplemented!()
-    }
+// impl Grid<bool, f64> for BitArray{
+//
+//     fn add(&mut self, pixel: bool) {
+//         unimplemented!()
+//     }
+//
+//     fn get(&self, x: usize, y: usize) -> bool {
+//         unimplemented!()
+//     }
+//
+//     fn side(&self) -> usize {
+//         unimplemented!()
+//     }
+//
+//     fn len(&self) -> usize {
+//         unimplemented!()
+//     }
+//
+//     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
+//         unimplemented!()
+//     }
+//
+//     fn default(&self) -> Self {
+//         unimplemented!()
+//     }
+//
+//     fn pixelize(&self, distance: f64, kernel_size: usize) -> bool {
+//         unimplemented!()
+//     }
+// }
 
-    fn get(&self, x: usize, y: usize) -> bool {
-        unimplemented!()
-    }
+impl Grid<u8, f64> for Image {
 
-    fn side(&self) -> usize {
-        unimplemented!()
-    }
-
-    fn len(&self) -> usize {
-        unimplemented!()
-    }
-
-    fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
-        unimplemented!()
-    }
-
-    fn default(&self) -> Self {
-        unimplemented!()
-    }
-
-    fn pixelize(&self, distance: R64, kernel_size: usize) -> bool{
-        unimplemented!()
-    }
-}
-
-impl Grid<u8> for Image {
     fn add(&mut self, pixel: u8) {
         self.pixels.push(pixel);
         if self.pixels.len() > self.side_size.pow(2) {
@@ -119,14 +120,15 @@ impl Grid<u8> for Image {
         Image::new()
     }
 
-    fn pixelize(&self, distance: R64, kernel_size: usize) -> u8{
-        let max_distance = ((std::u8::MAX as f64).powf(2.0) * (KERNEL_SIZE.pow(2) as f64)).powf(0.5);
+    fn pixelize(&self, distance: f64, kernel_size: usize) -> u8 {
+        let max_distance = ((std::u8::MAX as f64).powf(2.0) * (kernel_size.pow(2) as f64)).powf(0.5);
         let distance_to_pixel_scale = (std::u8::MAX as f64) / max_distance;
         //(units squared) * (the scaling factor) = to fit into the 255
-        (distance.into_inner().powf(0.5) * distance_to_pixel_scale) as u8
-
+        (distance.powf(0.5) * distance_to_pixel_scale) as u8
     }
 }
+
+
 
 
 impl Image {

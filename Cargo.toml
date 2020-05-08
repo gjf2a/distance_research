@@ -8,9 +8,9 @@ edition = "2018"
 overflow-checks = true
 
 [dependencies]
-decorum = "0.1"
 rand = "0.7"
 rand_distr = "0.2"
+itertools = "0.9.0"
 bits = {git = "https://github.com/gjf2a/bits"}
 hash_histogram = {git = "https://github.com/gjf2a/hash_histogram"}
 kmeans = {git = "https://github.com/gjf2a/kmeans"}
