@@ -2,7 +2,7 @@
 name = "distance_research"
 version = "0.1.0"
 authors = ["gjf2a <ferrer@hendrix.edu>"]
-edition = "2018"
+edition = "2018"    
 
 [profile.release]
 overflow-checks = true

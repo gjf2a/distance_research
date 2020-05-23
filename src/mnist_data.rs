@@ -5,7 +5,6 @@ use std::ops::{AddAssign, Add};
 use bits::BitArray;
 
 
-
 pub const IMAGE_DIMENSION: usize = 28;
 pub const IMAGE_BYTES: usize = IMAGE_DIMENSION * IMAGE_DIMENSION;
 
@@ -54,36 +53,36 @@ pub trait Grid<T: Default, DIS=Self> {
     fn pixelize(&self, distance: DIS, kernel_size: usize) -> T;
 }
 
-// impl Grid<bool, f64> for BitArray{
-//
-//     fn add(&mut self, pixel: bool) {
-//         unimplemented!()
-//     }
-//
-//     fn get(&self, x: usize, y: usize) -> bool {
-//         unimplemented!()
-//     }
-//
-//     fn side(&self) -> usize {
-//         unimplemented!()
-//     }
-//
-//     fn len(&self) -> usize {
-//         unimplemented!()
-//     }
-//
-//     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
-//         unimplemented!()
-//     }
-//
-//     fn default(&self) -> Self {
-//         unimplemented!()
-//     }
-//
-//     fn pixelize(&self, distance: f64, kernel_size: usize) -> bool {
-//         unimplemented!()
-//     }
-// }
+impl Grid<bool, f64> for BitArray{
+
+    fn add(&mut self, pixel: bool) {
+        unimplemented!()
+    }
+
+    fn get(&self, x: usize, y: usize) -> bool {
+        unimplemented!()
+    }
+
+    fn side(&self) -> usize {
+        unimplemented!()
+    }
+
+    fn len(&self) -> usize {
+        unimplemented!()
+    }
+
+    fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
+        unimplemented!()
+    }
+
+    fn default(&self) -> Self {
+        unimplemented!()
+    }
+
+    fn pixelize(&self, distance: f64, kernel_size: usize) -> bool {
+        unimplemented!()
+    }
+}
 
 impl Grid<u8, f64> for Image {
 
