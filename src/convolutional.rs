@@ -109,6 +109,8 @@ mod tests {
     use super::*;
     use std::borrow::Borrow;
     use crate::mnist_data::image_mean;
+    use bits::BitArray;
+    use std::fmt::Binary;
 
     #[test]
     fn test_kernels() {
@@ -156,15 +158,29 @@ mod tests {
         let conversion = pixelize(distance);
         println!();
         println!("u8: {}", conversion);
-
-
-
-
-
     }
 
     fn print_image(img: &Image) { &img.x_y_iter().
                                     for_each(|(x, y)|
                                         println!("x: {}, y: {}, val: {}", x, y, &img.get(x,y))); }
+
+    #[test]
+    fn binarized_image_test(){
+        let mut b1 = BitArray::new();
+        let mut b2 = BitArray::new();
+        b1.add(true);
+        b2.add(false);
+        b1.add(true);
+        b2.add(false);
+        let diff: u32 = 2;
+        for _ in 0..(BitArray::word_size() - 1) {
+            b1.add(false);
+            b2.add(false);
+        }
+        print_binimage(&b1);
+    }
+    fn print_binimage(img: &BitArray) { &img.x_y_iter().
+        for_each(|(x, y)|
+            println!("x: {}, y: {}, val: {}", x, y, &img.get(x,y))); }
 
 }

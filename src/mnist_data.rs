@@ -2,7 +2,7 @@ use std::fs;
 use std::io;
 use std::io::Read;
 use std::ops::{AddAssign, Add};
-use bits::BitArray;
+use bits::*;
 
 
 pub const IMAGE_DIMENSION: usize = 28;
@@ -13,14 +13,6 @@ pub struct Image {
     pixels: Vec<u8>,
     side_size: usize,
 }
-
-//Image implements this trait
-//refactor convolutional to something implements Grid
-//Grid<boolean> for BitArray
-//BitImage -> wrapper around BitArray
-//abstact distance thing for calculating the distances
-//migrate the subimage to a grid
-
 
 pub trait Grid<T: Default, DIS=Self> {
 
@@ -53,34 +45,39 @@ pub trait Grid<T: Default, DIS=Self> {
     fn pixelize(&self, distance: DIS, kernel_size: usize) -> T;
 }
 
-impl Grid<bool, f64> for BitArray{
+impl Grid<bool, u32> for BitArray{
 
     fn add(&mut self, pixel: bool) {
-        unimplemented!()
+        self.add(pixel)
     }
 
     fn get(&self, x: usize, y: usize) -> bool {
-        unimplemented!()
+        assert!(self.in_bounds(x as isize, y as isize));
+        self.is_set((y * self.side() + x) as u64)
     }
 
     fn side(&self) -> usize {
-        unimplemented!()
+        BitArray::word_size() - 1
     }
 
     fn len(&self) -> usize {
-        unimplemented!()
+        self.len() as usize
     }
 
     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> BitArray {
-        unimplemented!()
+        let mut result = BitArray::new();
+        ImageIterator::centered(x_center as isize, y_center as isize, side as isize, side as isize, 1)
+            .for_each(|(x, y)| result.add(self.option_get(x, y).unwrap_or(false)));
+        result
     }
 
-    fn default(&self) -> Self {
-        unimplemented!()
+    fn default(&self) -> BitArray {
+        BitArray::new()
     }
 
-    fn pixelize(&self, distance: f64, kernel_size: usize) -> bool {
-        unimplemented!()
+    fn pixelize(&self, distance: u32, _kernel_size: usize) -> bool {
+        let ones = self.count_bits_on();
+        ones < distance
     }
 }
 

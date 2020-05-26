@@ -7,6 +7,7 @@ mod brief;
 mod patch;
 mod convolutional;
 mod timing;
+mod hamming_distance;
 
 use std::io;
 use supervised_learning::Classifier;
