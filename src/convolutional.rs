@@ -1,6 +1,5 @@
 use crate::mnist_data::{Image, image_mean, Grid};
 use kmeans;
-use decorum::R64;
 use crate::euclidean_distance::euclidean_distance;
 
 const NUM_KERNELS: usize = 8;
@@ -16,7 +15,7 @@ pub fn kernelize_all(labeled_images: &Vec<(u8,Image)>, levels: usize) -> Vec<(u8
     kernelized
 }
 
-pub fn kernelized_distance(k1: &Vec<Image>, k2: &Vec<Image>) -> R64 {
+pub fn kernelized_distance(k1: &Vec<Image>, k2: &Vec<Image>) -> f64 {
     assert_eq!(k1.len(), k2.len());
     (0..k1.len()).map(|i| euclidean_distance(&k1[i], &k2[i])).sum()
 }
@@ -50,13 +49,13 @@ pub fn apply_kernel_to(img: &Image, kernel: &Image) -> Image {
     result
 }
 
-pub fn pixelize(distance: R64) -> u8 {
+pub fn pixelize(distance: f64) -> u8 {
     let max_distance = ((std::u8::MAX as f64).powf(2.0) * (KERNEL_SIZE.pow(2) as f64)).powf(0.5);
     let distance_to_pixel_scale = (std::u8::MAX as f64) / max_distance;
-    (distance.into_inner().powf(0.5) * distance_to_pixel_scale) as u8
+    (distance.powf(0.5) * distance_to_pixel_scale) as u8
 }
 
-fn add_kernels_from_to(img: &Image, raw_filters: &mut Vec<Image>, kernel_size: usize) {
+pub fn add_kernels_from_to(img: &Image, raw_filters: &mut Vec<Image>, kernel_size: usize) {
     img.x_y_iter().
         for_each(|(x, y)| raw_filters.push(img.subimage(x, y, kernel_size)));
 }

@@ -5,6 +5,7 @@ mod brief;
 mod patch;
 mod convolutional;
 mod timing;
+mod kernel_patch;
 
 use std::io;
 use supervised_learning::Classifier;
@@ -13,6 +14,7 @@ use std::env;
 use std::collections::{HashSet, BTreeMap, HashMap};
 use crate::brief::Descriptor;
 use crate::convolutional::{kernelize_all, kernelized_distance};
+use crate::kernel_patch::{kernelize_single_image, best_match_distance};
 use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
 
@@ -40,6 +42,8 @@ const UNIFORM_NEIGHBORS: &str = "uniform_neighbors";
 const GAUSSIAN_NEIGHBORS: &str = "gaussian_neighbors";
 const GAUSSIAN_7: &str = "gaussian_7";
 const EQUIDISTANT_BRIEF: &str = "equidistant";
+const EQUIDISTANT_3_3_BRIEF: &str = "equidistant_3_3";
+const COMPARE_KERNELS: &str = "compare_kernels";
 
 fn main() -> io::Result<()> {
     let args: HashSet<String> = env::args().collect();
@@ -70,6 +74,8 @@ fn help_message() {
     println!("\t{}: Gaussian neighbor BRIEF (stdev 1/7 side)", GAUSSIAN_7);
     println!("These variants are subsequent to the FLAIRS-2020 paper:");
     println!("\t{}: Equidistant BRIEF, where each pair consists of a pixel and another at a fixed x,y offset", EQUIDISTANT_BRIEF);
+    println!("\t{}: Equidistant 3x3 kernel BRIEF, comparing 3x3 neighborhoods around the pixel pairs", EQUIDISTANT_3_3_BRIEF);
+    println!("\t{}: Find 8 3x3 kernels for each image; add distance from each kernel to its best match", COMPARE_KERNELS);
 }
 
 fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
@@ -158,12 +164,12 @@ pub struct ExperimentData {
 }
 
 impl ExperimentData {
-    pub fn build_and_test_model<I: Clone, M: Copy + Eq + Ord, C: Fn(&Image) -> I, D: Fn(&I,&I) -> M>
+    pub fn build_and_test_model<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Image) -> I, D: Fn(&I,&I) -> M>
     (&mut self, label: &str, conversion: C, distance: D) {
         self.build_and_test_converting_all(label, |v| convert_all(v, &conversion), distance);
     }
 
-    pub fn build_and_test_converting_all<I: Clone, M: Copy + Eq + Ord, C: Fn(&Vec<(u8,Image)>) -> Vec<(u8,I)>, D: Fn(&I,&I) -> M>
+    pub fn build_and_test_converting_all<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Vec<(u8,Image)>) -> Vec<(u8,I)>, D: Fn(&I,&I) -> M>
     (&mut self, label: &str, conversion: C, distance: D) {
         let training_images = print_time_milliseconds(&format!("converting training images to {}", label),
                                                       || conversion(&self.training));
@@ -182,7 +188,12 @@ impl ExperimentData {
     }
 
     pub fn get_descriptor(&self, name: &str) -> Descriptor {
-        self.descriptors.get(name).unwrap().clone()
+        match self.descriptors.get(name) {
+            Some(d) => d.clone(),
+            None => {
+                panic!(format!("Descriptor {} not created", name))
+            }
+        }
     }
 
     pub fn add_descriptor(&mut self, name: &str, d: Descriptor) {
@@ -211,11 +222,18 @@ impl ExperimentData {
         if args.contains(EQUIDISTANT_BRIEF) {
             self.build_and_test_descriptor(EQUIDISTANT_BRIEF);
         }
+        if args.contains(EQUIDISTANT_3_3_BRIEF) {
+            let descriptor = self.get_descriptor(EQUIDISTANT_BRIEF);
+            self.build_and_test_model(EQUIDISTANT_3_3_BRIEF, |img| descriptor.apply_kernel(img, 3), bits::distance);
+        }
         if args.contains(PATCH) {
             self.build_and_test_patch(PATCH, PATCH_SIZE);
         }
         if args.contains(CONVOLUTIONAL_1) {
             self.build_and_test_converting_all(CONVOLUTIONAL_1, |images| kernelize_all(images, 1), kernelized_distance);
+        }
+        if args.contains(COMPARE_KERNELS) {
+            self.build_and_test_converting_all(COMPARE_KERNELS, |images| images.iter().map(|(label, img)| (*label, kernelize_single_image(img, 8, 3))).collect(), best_match_distance);
         }
     }
 

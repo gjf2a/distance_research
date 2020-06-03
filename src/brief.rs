@@ -93,18 +93,36 @@ impl Descriptor {
     }
 
     pub fn apply_to(&self, img: &Image) -> BitArray {
+        self.apply(img, &Descriptor::evaluate)
+    }
+
+    pub fn apply_kernel(&self, img: &Image, kernel_size: usize) -> BitArray {
+        self.apply(img, &|d, img, x1, y1, x2, y2| d.evaluate_mask(img, x1, y1, x2, y2, kernel_size))
+    }
+
+    fn apply<F: Fn(&Descriptor,&Image,usize,usize,usize,usize) -> bool>(&self, img: &Image, eval: &F) -> BitArray {
         assert_eq!(img.side(), self.width());
         assert_eq!(img.side(), self.height());
 
         let mut bits = BitArray::new();
         self.pairs.iter()
             .for_each(|((x1, y1), (x2, y2))|
-                bits.add(img.get(*x1, *y1) < img.get(*x2, *y2)));
+                bits.add(eval(&self, img, *x1, *y1, *x2, *y2)));
         bits
     }
 
     pub fn evaluate(&self, img: &Image, x1: usize, y1: usize, x2: usize, y2: usize) -> bool {
         img.get(x1, y1) < img.get(x2, y2)
+    }
+
+    pub fn evaluate_mask(&self, img: &Image, x1: usize, y1: usize, x2: usize, y2: usize, kernel_size: usize) -> bool {
+        let patch_1 = img.subimage(x1, y1, kernel_size);
+        let patch_2 = img.subimage(x2, y2, kernel_size);
+        let num_lower = patch_1.x_y_iter()
+            .filter(|(x, y)| patch_1.get(*x, *y) < patch_2.get(*x, *y))
+            .count();
+        let target = kernel_size.pow(2) / 2;
+        num_lower > target
     }
 
     pub fn majority_image(&self, img: &Image) -> BitArray {
