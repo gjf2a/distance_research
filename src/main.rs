@@ -9,16 +9,23 @@ mod convolutional;
 mod timing;
 mod hamming_distance;
 
+
 use std::io;
 use supervised_learning::Classifier;
-use crate::mnist_data::{Image, image_mean};
+use crate::mnist_data::{Image, image_mean, bitarray_max};
 use std::env;
 use std::collections::{HashSet, BTreeMap, HashMap};
 use crate::brief::Descriptor;
-use crate::convolutional::{kernelize_all, kernelized_distance};
+use crate::convolutional::{kernelize_all, kernelized_distance, kernelized_dist_bitarray};
 use crate::euclidean_distance::euclidean_distance;
+use crate::hamming_distance::hamming_distance;
 use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
+use bits::{distance, BitArray};
+
+
+
+
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
@@ -39,6 +46,7 @@ const BASELINE: &str = "baseline";
 const BRIEF: &str = "brief";
 const UNIFORM_BRIEF: &str = "uniform_brief";
 const CONVOLUTIONAL_1: &str = "convolutional1";
+const CONVOLUTIONAL_2: &str = "convolutional2";
 const PATCH: &str = "patch";
 const UNIFORM_NEIGHBORS: &str = "uniform_neighbors";
 const GAUSSIAN_NEIGHBORS: &str = "gaussian_neighbors";
@@ -81,7 +89,7 @@ fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
     let mut testing_images = load_data_set("t10k")?;
     //NOTES:
     //      load_data_set returns a vec of a pair, u8 (labels) and Image
-    //      see mnist_data for loading from file
+    //      see mnist_data_zip for loading from file
     //      permute: runs additional experiment that permutes image pixels
     //      shrink: Use only 1 out of 50 training/testing images
     //      sequence: Use 1/50, 1/20, 1/10, 1/5, and 1/2 training/testing images
@@ -111,7 +119,8 @@ fn run_experiments(args: &HashSet<String>, training_images: Vec<(u8,Image)>, tes
         training: training_images,
         testing: testing_images,
         descriptors: Default::default(),
-        errors: BTreeMap::new()
+        errors: BTreeMap::new(),
+        args: args.clone()
     };
 
     data.add_descriptor(BRIEF, brief::Descriptor::classic_gaussian_brief(CLASSIC_BRIEF_PAIRS, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
@@ -121,13 +130,15 @@ fn run_experiments(args: &HashSet<String>, training_images: Vec<(u8,Image)>, tes
     data.add_descriptor(GAUSSIAN_7, brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION / 7, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
     data.add_descriptor(EQUIDISTANT_BRIEF, brief::Descriptor::equidistant(mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION, EQUIDISTANT_OFFSET, EQUIDISTANT_OFFSET));
 
-    data.run_all_tests_with(&args);
 
-    if args.contains(PERMUTE) {
+    //This is the entry point to testing
+    data.run_all_tests_with();
+
+    if data.args.contains(PERMUTE) {
         println!("Permuting images");
         let permutation = permutation::read_permutation("image_permutation_file")?;
-        let mut permuted_data = data.permuted(&permutation);
-        permuted_data.run_all_tests_with(&args);
+        let mut permuted_data = data.permuted(&permutation, &args);
+        permuted_data.run_all_tests_with();
         println!("Permuted results");
         permuted_data.print_errors();
         println!();
@@ -161,30 +172,24 @@ fn convert_all<I, C: Fn(&Image) -> I>(labeled_list: &Vec<(u8, Image)>, conversio
     labeled_list.iter().map(|(label, img)| (*label, conversion(img))).collect()
 }
 
+
 #[derive(Clone)]
 pub struct ExperimentData {
     training: Vec<(u8,Image)>,
     testing: Vec<(u8,Image)>,
     descriptors: HashMap<String,Descriptor>,
-    errors: BTreeMap<String,f64>
+    errors: BTreeMap<String,f64>,
+    args: HashSet<String>
 }
 
 impl ExperimentData {
-    pub fn build_and_test_model<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Image) -> I, D: Fn(&I,&I) -> M>
+    pub fn build_and_test_model<I: Clone + PartialEq, M: Copy + PartialEq + PartialOrd, C: Fn(&Image) -> I, D: Fn(&I,&I) -> M>
     (&mut self, label: &str, conversion: C, distance: D) {
-        //instead of convert all, it does the conversion as well as the convolution
-        self.build_and_test_converting_all(label, |v| convert_all(v, &conversion), distance);
+        self.build_and_test_converting_images(label, |v| convert_all(v, &conversion), distance);
     }
 
-    pub fn build_and_test_converting_all<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Vec<(u8,Image)>) -> Vec<(u8,I)>, D: Fn(&I,&I) -> M>
-    (&mut self, label: &str, conversion: C, distance: D) {
-        let training_images = print_time_milliseconds(&format!("converting training images to {}", label),
-                                                      || conversion(&self.training));
-
-        let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
-                                                     || conversion(&self.testing));
-
-        //distance is a function of Fn(&I,&I) -> Some distance value of M type
+    pub fn model_all<I: Clone, M: Copy + PartialEq + PartialOrd, D: Fn(&I,&I) -> M>
+    (&mut self, label: &str, distance: D, testing_images: &Vec<(u8, I)>, training_images: &Vec<(u8, I)>) {
         let mut model = knn::Knn::new(K, distance);
         print_time_milliseconds(&format!("training {} model (k={})", label, K),
                                 || model.train(&training_images));
@@ -195,6 +200,17 @@ impl ExperimentData {
         self.errors.insert(label.to_string(), error_percentage);
     }
 
+
+    pub fn build_and_test_converting_images<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Vec<(u8, Image)>) -> Vec<(u8, I)>, D: Fn(&I,&I) -> M>
+    (&mut self, label: &str, conversion: C, distance: D) {
+        let training_images = print_time_milliseconds(&format!("converting training images to {}", label),
+                                                      || conversion(&self.training));
+
+        let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
+                                                     || conversion(&self.testing));
+        self.model_all(label, distance, &testing_images, &training_images);
+    }
+
     pub fn get_descriptor(&self, name: &str) -> Descriptor {
         self.descriptors.get(name).unwrap().clone()
     }
@@ -203,53 +219,87 @@ impl ExperimentData {
         self.descriptors.insert(name.to_string(), d);
     }
 
-    pub fn run_all_tests_with(&mut self, args: &HashSet<String>) {
-        if args.contains(BASELINE) {
+    pub fn run_descriptors(&mut self){
+        if self.args.contains(BASELINE) {
             self.build_and_test_model(BASELINE, |v| v.clone(), euclidean_distance::euclidean_distance);
         }
-        if args.contains(BRIEF) {
+        if self.args.contains(BRIEF) {
             self.build_and_test_descriptor(BRIEF);
         }
-        if args.contains(UNIFORM_BRIEF) {
+        if self.args.contains(UNIFORM_BRIEF) {
             self.build_and_test_descriptor(UNIFORM_BRIEF);
         }
-        if args.contains(UNIFORM_NEIGHBORS) {
+        if self.args.contains(UNIFORM_NEIGHBORS) {
             self.build_and_test_descriptor(UNIFORM_NEIGHBORS);
         }
-        if args.contains(GAUSSIAN_NEIGHBORS) {
+        if self.args.contains(GAUSSIAN_NEIGHBORS) {
             self.build_and_test_descriptor(GAUSSIAN_NEIGHBORS);
         }
-        if args.contains(GAUSSIAN_7) {
+        if self.args.contains(GAUSSIAN_7) {
             self.build_and_test_descriptor(GAUSSIAN_7);
         }
-        if args.contains(EQUIDISTANT_BRIEF) {
+        if self.args.contains(EQUIDISTANT_BRIEF) {
             self.build_and_test_descriptor(EQUIDISTANT_BRIEF);
         }
-        if args.contains(PATCH) {
+        if self.args.contains(PATCH) {
             self.build_and_test_patch(PATCH, PATCH_SIZE);
         }
-        if args.contains(CONVOLUTIONAL_1) {
-            self.build_and_test_converting_all(CONVOLUTIONAL_1,
-                                               |images| kernelize_all(images, 1,
+    }
+
+    pub fn run_all_tests_with(&mut self) {
+        if self.args.contains(CONVOLUTIONAL_1) {
+            self.build_and_test_converting_images(CONVOLUTIONAL_1,
+                                                  |images| kernelize_all(images, 1,
                                                                       euclidean_distance, image_mean), kernelized_distance);
+        } else {
+            self.run_descriptors();
         }
+
     }
 
     fn build_and_test_descriptor(&mut self, descriptor_name: &str) {
         let descriptor = self.get_descriptor(descriptor_name);
-        self.build_and_test_model(descriptor_name, |img| descriptor.apply_to(img), bits::distance);
+        if self.args.contains(CONVOLUTIONAL_2){
+            self.build_and_test_model_bitarray(descriptor_name, |img| descriptor.apply_to(img));
+        }else {
+            self.build_and_test_model(descriptor_name, |img| descriptor.apply_to(img), bits::distance);
+        }
+
+    }
+
+    pub fn build_and_test_model_bitarray<C: Fn(&Image) -> BitArray>(&mut self, label: &str, conversion: C) {
+        let training_images: Vec<(u8, BitArray)> = print_time_milliseconds(&format!("converting training images to {}", label),
+                                                                           || convert_all(&self.training, &conversion));
+
+        let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
+                                                     || convert_all(&self.testing, &conversion));
+
+        self.build_and_test_converting_bitarray(CONVOLUTIONAL_2,
+                                                |images| kernelize_all(images, 1, hamming_distance, bitarray_max),
+                                                kernelized_dist_bitarray, &testing_images, &training_images);
+    }
+
+
+
+    pub fn build_and_test_converting_bitarray<H: Clone + PartialEq, I: Clone, M: Copy + PartialEq + PartialOrd,
+        C: Fn(&Vec<(u8, H)>) -> Vec<(u8, I)>, D: Fn(&I,&I) -> M>
+    (&mut self, label: &str, conversion: C, distance: D, testing: &Vec<(u8, H)>, training: &Vec<(u8, H)>) {
+        let training_images = print_time_milliseconds(&format!("converting training images to {}", label), || conversion(training));
+        let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label), || conversion(testing));
+        self.model_all(label, distance, &testing_images, &training_images);
     }
 
     fn build_and_test_patch(&mut self, label: &str, patch_size: usize) {
         self.build_and_test_model(label, |img| patchify(img, patch_size), bits::distance);
     }
 
-    pub fn permuted(&self, permutation: &Vec<usize>) -> ExperimentData {
+    pub fn permuted(&self, permutation: &Vec<usize>, args: &HashSet<String>) -> ExperimentData {
         ExperimentData {
             training: permuted_data_set(permutation, &self.training),
             testing: permuted_data_set(permutation, &self.testing),
             descriptors: self.descriptors.clone(),
-            errors: BTreeMap::new()
+            errors: BTreeMap::new(),
+            args: args.clone()
         }
     }
 

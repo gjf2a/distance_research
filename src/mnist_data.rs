@@ -3,6 +3,7 @@ use std::io;
 use std::io::Read;
 use std::ops::{AddAssign, Add};
 use bits::*;
+use hash_histogram::HashHistogram;
 
 
 pub const IMAGE_DIMENSION: usize = 28;
@@ -57,7 +58,8 @@ impl Grid<bool, u32> for BitArray{
     }
 
     fn side(&self) -> usize {
-        BitArray::word_size() - 1
+        //Assuming a square
+        (self.len() as f64).sqrt() as usize
     }
 
     fn len(&self) -> usize {
@@ -190,6 +192,38 @@ impl PartialEq for Image {
 
 impl Eq for Image {}
 
+pub fn bitarray_max(images: &Vec<BitArray>) -> BitArray {
+    assert!(!images.is_empty());
+    assert!(images.iter().all(|img| img.len() == images[0].len()));
+    let mut sums: Vec<usize> = (0..images[0].len()).map(|_| 0).collect();
+    for image in images.iter(){
+        for (x,y) in image.x_y_iter() {
+            let index = (y * image.side()) + x;
+            sums[index] += bits_to_num(image.get(x, y));
+        }
+    }
+    let mut result = BitArray::new();
+    let images_length = images.len();
+    for ones in sums {
+        let zeros = images_length - ones;
+        //println!("ones: {}, zeros: {}", ones, zeros);
+        result.add(ones >= zeros);
+    }
+    result
+}
+
+fn bits_to_num(b: bool) -> usize{
+    if b{
+        1
+    }else {
+        0
+    }
+}
+
+
+
+
+
 
 pub fn image_mean(images: &Vec<Image>) -> Image {
     assert!(!images.is_empty());
@@ -301,6 +335,7 @@ fn read_image_file(image_file_name: &str, labels: &[u8]) -> io::Result<Vec<(u8,I
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::timing::print_time_milliseconds;
 
     #[test]
     fn test_img() {
@@ -352,4 +387,40 @@ mod tests {
         let ref_sub = Image::from_vec(&vec![1, 2, 3, 5, 6, 7, 9, 10, 11]);
         assert_eq!(ref_sub, sub);
     }
+
+    // 1 1 0 0 -> 2 -> true
+    // 1 1 1 0 -> 3 -> true
+    // 1 0 0 0 -> 1 -> false
+    // 1 1 1 1 -> 4 -> true    // 0 0 0 0 -> 0 -> false
+    #[test]
+    fn test_image_mean_bitarray(){
+        let b1 = build_binimage(&vec![true, false, true, false]);
+        let b2 = build_binimage(&vec![true, false, true, false]);
+        let b3 = build_binimage(&vec![true, false, false, false]);
+        let b4 = build_binimage(&vec![false, true, false, false]);
+        //print_binimage(&b1);
+        //println!();
+        //print_binimage(&b2);
+        let bins = vec![b1.clone(), b2.clone(), b3.clone(), b4.clone()];
+        let means = bitarray_max(&bins);
+        //println!();
+        //print_binimage(&result);
+        let result = build_binimage(&vec![true, false, true, false]);
+        assert_eq!(result, means);
+    }
+
+
+    fn build_binimage(image: &Vec<bool>) -> BitArray{
+        let mut b1 = BitArray::new();
+        for i in 0..image.len(){
+            b1.add(image[i]);
+
+        }
+        b1
+    }
+
+    fn print_binimage(img: &BitArray) {
+        &img.x_y_iter().for_each(|(x, y)| println!("x: {}, y: {}, val: {}", x, y, &img.get(x,y)));
+    }
+
 }
