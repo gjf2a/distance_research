@@ -1,0 +1,90 @@
+Normal
+
+Finished converting testing images to convolutional1 after 651.673 seconds
+Started training convolutional1 model (k=7)...
+Finished training convolutional1 model (k=7) after 0.073 seconds
+Started testing...
+5%; 10%; 15%; 20%; 25%; 30%; 35%; 40%; 45%; 50%; 55%; 60%; 65%; 70%; 75%; 80%; 85%; 90%; 95%; 100%;
+Finished testing after 10234.825 seconds
+0: 968 correct, 12 incorrect
+1: 1067 correct, 68 incorrect
+2: 990 correct, 42 incorrect
+3: 966 correct, 44 incorrect
+4: 902 correct, 80 incorrect
+5: 860 correct, 32 incorrect
+6: 938 correct, 20 incorrect
+7: 955 correct, 73 incorrect
+8: 942 correct, 32 incorrect
+9: 970 correct, 39 incorrect
+Error rate: 4.42
+Original results
+convolutional1: 4.42%
+
+Process finished with exit code 0
+
+SOCluster
+
+Finished converting testing images to convolutional1 after 62.669 seconds
+Started training convolutional1 model (k=7)...
+Finished training convolutional1 model (k=7) after 0.07 seconds
+Started testing...
+5%; 10%; 15%; 20%; 25%; 30%; 35%; 40%; 45%; 50%; 55%; 60%; 65%; 70%; 75%; 80%; 85%; 90%; 95%; 100%;
+Finished testing after 10333.324 seconds
+0: 963 correct, 17 incorrect
+1: 1107 correct, 28 incorrect
+2: 1008 correct, 24 incorrect
+3: 966 correct, 44 incorrect
+4: 927 correct, 55 incorrect
+5: 848 correct, 44 incorrect
+6: 938 correct, 20 incorrect
+7: 968 correct, 60 incorrect
+8: 915 correct, 59 incorrect
+9: 939 correct, 70 incorrect
+Error rate: 4.21
+Original results
+convolutional1: 4.21%
+
+Process finished with exit code 0
+
+knnn, SOCLustering
+
+Started loading mnist train images...
+Finished loading mnist train images after 31.869 seconds
+Number of train images: 60000
+Started loading mnist t10k images...
+Finished loading mnist t10k images after 5.177 seconds
+Number of t10k images: 10000
+Started converting training images to convolutional1...
+ADDED KERNELS
+candidates len: 47040000
+EXTRACTED KERNELS
+PUSHED KERNELS
+PROJECTED KERNELS FINISHED
+Finished converting training images to convolutional1 after 374.892 seconds
+Started converting testing images to convolutional1...
+ADDED KERNELS
+candidates len: 7840000
+EXTRACTED KERNELS
+PUSHED KERNELS
+PROJECTED KERNELS FINISHED
+Finished converting testing images to convolutional1 after 62.367 seconds
+Started training convolutional1 model (k=7)...
+Finished training convolutional1 model (k=7) after 0.071 seconds
+Started testing...
+5%; 10%; 15%; 20%; 25%; 30%; 35%; 40%; 45%; 50%; 55%; 60%; 65%; 70%; 75%; 80%; 85%; 90%; 95%; 100%;
+Finished testing after 10599.024 seconds
+0: 963 correct, 17 incorrect
+1: 1104 correct, 31 incorrect
+2: 1009 correct, 23 incorrect
+3: 968 correct, 42 incorrect
+4: 927 correct, 55 incorrect
+5: 849 correct, 43 incorrect
+6: 938 correct, 20 incorrect
+7: 971 correct, 57 incorrect
+8: 915 correct, 59 incorrect
+9: 935 correct, 74 incorrect
+Error rate: 4.21
+Original results
+convolutional1: 4.21%
+
+Process finished with exit code 0

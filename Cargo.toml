@@ -16,3 +16,4 @@ hash_histogram = {git = "https://github.com/gjf2a/hash_histogram"}
 kmeans = {git = "https://github.com/gjf2a/kmeans"}
 supervised_learning = {git = "https://github.com/gjf2a/supervised_learning"}
 knn = {git = "https://github.com/gjf2a/knn"}
+soc = {git = "https://github.com/davidavzP/soc"}
