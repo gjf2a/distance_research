@@ -1,0 +1,1 @@
+{"rustc":4892685352640505494,"features":"","target":0,"profile":0,"path":0,"deps":[[2699600302832532017,"build_script_build",false,11522511304028246812]],"local":[{"RerunIfChanged":{"output":"release/build/num-iter-edb27000623adb32/output","paths":["build.rs"]}}],"rustflags":[],"metadata":0}

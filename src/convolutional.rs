@@ -6,42 +6,48 @@ use itertools::{Itertools};
 use std::rc::Rc;
 use bits::BitArray;
 use crate::hamming_distance::hamming_distance;
-use std::ops::Deref;
-use soc::SOCluster;
-use std::fmt::Debug;
+use soc::means::traits::{Means, PartialCmp};
+extern crate image;
 
 const NUM_KERNELS: usize = 8;
 const KERNEL_SIZE: usize = 3;
 const STRIDE: usize = 2;
 
-pub fn kernelize_all<D: Clone + Default, T: Grid<D, V> + Clone + PartialEq,
-                     V: Copy + PartialEq + PartialOrd + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
+pub trait Replicate = Clone + Default;
+pub trait CData<D: Default,V> = Grid<D, V> + Means;
+
+pub fn kernelize_all<D: Replicate, T: CData<D, V>,
+                     V: PartialCmp + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
                      (labeled_images: &Vec<(u8, T)>, levels: usize, distance: F, mean: M) -> Vec<(u8, Vec<T>)>{
     let mut images = labeled_images.iter().map(|(_,img)| img);
-   let kernels = extract_kernels_from2(images, NUM_KERNELS, KERNEL_SIZE, &distance, mean);
-    println!("EXTRACTED KERNELS");
+    let kernels = extract_kernels_from2(images, NUM_KERNELS, KERNEL_SIZE, &distance, mean);
     let mut kernelized: Vec<(u8,Vec<T>)> = Vec::new();
     for (label, img) in labeled_images{
         kernelized.push((*label, vec![img.clone()]))
     }
-    println!("PUSHED KERNELS");
     for _ in 0..levels {
         kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels, &distance))).collect_vec();
     }
-    println!("PROJECTED KERNELS FINISHED");
     kernelized
 }
 
-pub fn extract_kernels_from2<'a, D: Clone + Default, T: 'a + Grid<D, V> + Clone + PartialEq , V: Copy + PartialEq + PartialOrd + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
+fn print_all_kernels<D: Replicate, T: CData<D, V>,
+V: PartialCmp + Into<f64>>(kernels: &Vec<T>, name: String) {
+    for (i, img) in kernels.iter().enumerate(){
+        let name = format!("{}_{}.png", name, i);
+        img.save(name).unwrap();
+    }
+}
+
+pub fn extract_kernels_from2<'a, D: Clone + Default, T: 'a + Grid<D, V> + Means, V: PartialCmp + Into<f64>,
+                            F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
             (images: impl Iterator<Item = &'a T>, num_kernels: usize, kernel_size: usize, distance: &F, mean: M) -> Vec<T>{
     let mut candidates: Vec<T> = Vec::new();
     for img in images {
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
-    println!("ADDED KERNELS");
-    println!("candidates len: {}", &candidates.len());
-    soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
-    //kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
+    //soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
+    kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
 
 }
 
@@ -57,21 +63,20 @@ pub fn kernelized_dist_bitarray(b1: &Vec<BitArray>, b2: &Vec<BitArray>) -> u32{
 }
 
 pub fn extract_kernels_from
-    <D: Clone + Default, T: Grid<D, V> + Clone + PartialEq , V: Copy + PartialEq + PartialOrd + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
+    <D: Clone + Default, T: Grid<D, V> + Means, V: PartialCmp + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
     (images: &Vec<T>, num_kernels: usize, kernel_size: usize, distance: &F, mean: M) -> Vec<T> {
     let length = images.len();
     println!("length: {}", length);
     let mut candidates: Vec<T> = Vec::new();
-    for (i, img) in images.iter().enumerate() {
+    for img in images{
         add_kernels_from_to(img, &mut candidates, kernel_size);
-        //println!("iter: {}", i );
     }
     println!("ADDED KERNELS");
     kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
 }
 
-pub fn project_all_through<D: Clone + Default, T: Grid<D, V> + Clone + PartialEq,
-                           V: Copy + PartialEq + PartialOrd + Into<f64>, F:Fn(&T,&T) -> V>
+pub fn project_all_through<D: Clone + Default, T: Grid<D, V> + Means,
+                           V: PartialCmp + Into<f64>, F:Fn(&T,&T) -> V>
                            (images: &Vec<T>, kernels: &Vec<T>, distance: &F) -> Vec<T> {
     let mut result = Vec::new();
     for img in images.iter() {
@@ -81,14 +86,14 @@ pub fn project_all_through<D: Clone + Default, T: Grid<D, V> + Clone + PartialEq
     result
 }
 
-pub fn project_image_through<D: Clone + Default, T: Grid<D, V> + Clone + PartialEq,
-                             V: Copy + PartialEq + PartialOrd, F:Fn(&T,&T) -> V>
+pub fn project_image_through<D: Clone + Default, T: Grid<D, V> + Means,
+                             V: PartialCmp, F:Fn(&T,&T) -> V>
                              (img: Rc<T>, kernels: &Vec<T>, distance: &F) -> Vec<T> {
     kernels.iter().map(|kernel| apply_kernel_to(&img, &Rc::new(kernel.to_owned()), &distance)).collect_vec()
 }
 
-pub fn apply_kernel_to<D: Clone + Default, T: Grid<D, V> + Clone + PartialEq,
-                       V: Copy + PartialEq + PartialOrd, F:Fn(&T,&T) -> V>
+pub fn apply_kernel_to<D: Clone + Default, T: Grid<D, V> + Means,
+                       V: PartialCmp, F:Fn(&T,&T) -> V>
                        (img: &Rc<T>, kernel: &Rc<T>, distancefn: &F) -> T {
     let mut result: T  = img.default();
     for(x, y) in img.x_y_step_iter(STRIDE){
@@ -99,22 +104,6 @@ pub fn apply_kernel_to<D: Clone + Default, T: Grid<D, V> + Clone + PartialEq,
     result
 }
 
-//R64 for the distance
-//distance as an integer value
-
-//pixelize -> takes the input of the output of the distance function
-//if the distance is below the value then return false
-//picking a threshold value as an input parameter, threshold testing
-//median distance
-
-//make generic to something else than u8
-//take a distance and turn it into a bit
-//mean distance for all pixels and then threshold for 0 and 1 below and above
-//threshold needs to be set
-//avoid f64 keep everything as the base
-//pub fn pixelize(distance: R64) -> boolean
-//threshold has a higher a higher order function |threshold| -> distance value
-//was it the same or different
 pub fn pixelize(distance: f64) -> u8 {
     //                       ((255^2 = 65,025) * (3^2 as f64))^(.5)
     //                       (biggest gap between two pixels is 255) * (number of pixels in the kernel)
@@ -124,23 +113,18 @@ pub fn pixelize(distance: f64) -> u8 {
     (distance.powf(0.5) * distance_to_pixel_scale) as u8
 }
 
-fn add_kernels_from_to<D: Clone + Default, T: Grid<D, U> + Clone + PartialEq, U: Copy + PartialEq + PartialOrd>(img: &T, raw_filters: &mut Vec<T>, kernel_size: usize) {
+fn add_kernels_from_to<D: Clone + Default, T: Grid<D, U> + Means, U: PartialCmp>(img: &T, raw_filters: &mut Vec<T>, kernel_size: usize) {
     img.x_y_iter().
         for_each(|(x, y)| raw_filters.push(img.subimage(x, y, kernel_size)));
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::borrow::Borrow;
     use crate::mnist_data::image_mean;
     use bits::BitArray;
-    use std::fmt::Binary;
     use crate::hamming_distance::hamming_distance;
-
-
+    use crate::mnist_data;
 
     #[test]
     fn test_kernels() {
@@ -163,28 +147,28 @@ mod tests {
         true
     }
 
-    #[test]
-    fn test_add_kernels_from_to(){
-        const SIZE: usize = 3;
-        let img = Image::from_vec(&vec![1,1,1,1,0,1,1,1,1]);
-        let bin_img = build_binimage(&vec![true, true, true, true, false, true, true , true, true]);
-        let mut img_cand: Vec<Image> = Vec::new();
-        add_kernels_from_to(&img, &mut img_cand, 2);
-        let mut bin_img_cand: Vec<BitArray> = Vec::new();
-        add_kernels_from_to(&bin_img, &mut bin_img_cand, 2);
-        assert_eq!(&img_cand.len(), &bin_img_cand.len());
-        println!("IMAGES: {}", &img_cand.len());
-        for img in img_cand.iter(){
-            print_image(img);
-            println!();
-        }
-        println!("BINIMAGES: {}", &bin_img_cand.len());
-        for bin_img in bin_img_cand.iter(){
-            print_binimage(bin_img);
-            println!();
-        }
-
-    }
+    // #[test]
+    // fn test_add_kernels_from_to(){
+    //     const SIZE: usize = 3;
+    //     let img = Image::from_vec(&vec![1,1,1,1,0,1,1,1,1]);
+    //     let bin_img = build_binimage(&vec![true, true, true, true, false, true, true , true, true]);
+    //     let mut img_cand: Vec<Image> = Vec::new();
+    //     add_kernels_from_to(&img, &mut img_cand, 2);
+    //     let mut bin_img_cand: Vec<BitArray> = Vec::new();
+    //     add_kernels_from_to(&bin_img, &mut bin_img_cand, 2);
+    //     assert_eq!(&img_cand.len(), &bin_img_cand.len());
+    //     println!("IMAGES: {}", &img_cand.len());
+    //     for img in img_cand.iter(){
+    //         print_image(img);
+    //         println!();
+    //     }
+    //     println!("BINIMAGES: {}", &bin_img_cand.len());
+    //     for bin_img in bin_img_cand.iter(){
+    //         print_binimage(bin_img);
+    //         println!();
+    //     }
+    //
+    // }
 
     #[test]
     fn test_apply_kernel_to(){
@@ -220,8 +204,7 @@ mod tests {
     fn build_binimage(image: &Vec<bool>) -> BitArray{
         let mut b1 = BitArray::new();
         for i in 0..image.len(){
-            b1.add(image[i]);
-
+            mnist_data::Grid::add(&mut b1, image[i])
         }
         b1
     }
@@ -238,8 +221,8 @@ mod tests {
         let vex2 = vec![true, true, true, true, true, true, true, true];
         assert_eq!(true, vex1.len() == vex2.len());
         for i in 0..vex1.len(){
-            b1.add(vex1[i].clone());
-            b2.add(vex2[i].clone());
+            mnist_data::Grid::add(&mut b1, vex1[i].clone());
+            mnist_data::Grid::add(&mut b2, vex2[i].clone());
         }
         print_binimage(&b1);
         println!();

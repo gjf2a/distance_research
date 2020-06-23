@@ -1,4 +1,5 @@
 #![feature(in_band_lifetimes)]
+#![feature(trait_alias)]
 
 mod mnist_data;
 mod euclidean_distance;
@@ -12,7 +13,7 @@ mod hamming_distance;
 
 use std::io;
 use supervised_learning::Classifier;
-use crate::mnist_data::{Image, image_mean, bitarray_max};
+use crate::mnist_data::{Image, image_mean, bitarray_max, Grid};
 use std::env;
 use std::collections::{HashSet, BTreeMap, HashMap};
 use crate::brief::Descriptor;
@@ -21,11 +22,8 @@ use crate::euclidean_distance::euclidean_distance;
 use crate::hamming_distance::hamming_distance;
 use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
-use bits::{distance, BitArray};
-
-
-
-
+use bits::BitArray;
+extern crate image;
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
@@ -87,6 +85,7 @@ fn help_message() {
 fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
     let mut training_images = load_data_set("train")?;
     let mut testing_images = load_data_set("t10k")?;
+
     //NOTES:
     //      load_data_set returns a vec of a pair, u8 (labels) and Image
     //      see mnist_data_zip for loading from file
@@ -174,6 +173,7 @@ fn convert_all<I, C: Fn(&Image) -> I>(labeled_list: &Vec<(u8, Image)>, conversio
 
 
 #[derive(Clone)]
+
 pub struct ExperimentData {
     training: Vec<(u8,Image)>,
     testing: Vec<(u8,Image)>,
@@ -199,7 +199,6 @@ impl ExperimentData {
         println!("Error rate: {}", error_percentage);
         self.errors.insert(label.to_string(), error_percentage);
     }
-
 
     pub fn build_and_test_converting_images<I: Clone, M: Copy + PartialEq + PartialOrd, C: Fn(&Vec<(u8, Image)>) -> Vec<(u8, I)>, D: Fn(&I,&I) -> M>
     (&mut self, label: &str, conversion: C, distance: D) {
@@ -260,24 +259,24 @@ impl ExperimentData {
     fn build_and_test_descriptor(&mut self, descriptor_name: &str) {
         let descriptor = self.get_descriptor(descriptor_name);
         if self.args.contains(CONVOLUTIONAL_2){
-            self.build_and_test_model_bitarray(descriptor_name, |img| descriptor.apply_to(img));
+            //self.build_and_test_model_bitarray(descriptor_name, |img| descriptor.apply_to(img));
         }else {
             self.build_and_test_model(descriptor_name, |img| descriptor.apply_to(img), bits::distance);
         }
 
     }
 
-    pub fn build_and_test_model_bitarray<C: Fn(&Image) -> BitArray>(&mut self, label: &str, conversion: C) {
-        let training_images: Vec<(u8, BitArray)> = print_time_milliseconds(&format!("converting training images to {}", label),
-                                                                           || convert_all(&self.training, &conversion));
-
-        let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
-                                                     || convert_all(&self.testing, &conversion));
-
-        self.build_and_test_converting_bitarray(CONVOLUTIONAL_2,
-                                                |images| kernelize_all(images, 1, hamming_distance, bitarray_max),
-                                                kernelized_dist_bitarray, &testing_images, &training_images);
-    }
+    // pub fn build_and_test_model_bitarray<C: Fn(&Image) -> BitArray>(&mut self, label: &str, conversion: C) {
+    //     let training_images: Vec<(u8, BitArray)> = print_time_milliseconds(&format!("converting training images to {}", label),
+    //                                                                        || convert_all(&self.training, &conversion));
+    //
+    //     let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
+    //                                                  || convert_all(&self.testing, &conversion));
+    //
+    //     self.build_and_test_converting_bitarray(CONVOLUTIONAL_2,
+    //                                             |images| kernelize_all(images, 1, hamming_distance, bitarray_max),
+    //                                             kernelized_dist_bitarray, &testing_images, &training_images);
+    // }
 
 
 

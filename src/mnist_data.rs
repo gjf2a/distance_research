@@ -3,11 +3,18 @@ use std::io;
 use std::io::Read;
 use std::ops::{AddAssign, Add};
 use bits::*;
-use hash_histogram::HashHistogram;
-
+use soc::means::traits::Means;
+use image::ImageError;
 
 pub const IMAGE_DIMENSION: usize = 28;
 pub const IMAGE_BYTES: usize = IMAGE_DIMENSION * IMAGE_DIMENSION;
+
+//Image traits: Clone + Debug + Default + Eq + PartialEq + Grid<D, V>
+//NEW Image trait       -- T: Grid<D, V> + Means(Clone + PartialEq)
+//NEW Image value trait -- D: Clone + Default
+//NEW Distance trait    -- V: PartialCmp(Copy + PartialEq + PartialOrd) + Into<f64>
+//Distance Function:    -- F: Fn(&T,&T) -> V
+//Mean Function:        -- M: Fn(&Vec<T>) -> T
 
 #[derive(Clone, Debug, Default)]
 pub struct Image {
@@ -15,7 +22,18 @@ pub struct Image {
     side_size: usize,
 }
 
-pub trait Grid<T: Default, DIS=Self> {
+impl Means for Image{
+    fn calc_mean(&self, other: &Image) -> Image {
+
+        image_mean(&vec![self.clone(), other.clone()])
+    }
+
+    fn calc_means(vals: &Vec<Self>) -> Self {
+        image_mean(vals)
+    }
+}
+
+pub trait Grid<T: Default, DIS> {
 
     fn add(&mut self, pixel: T);
     fn get(&self, x: usize, y: usize) -> T;
@@ -44,6 +62,8 @@ pub trait Grid<T: Default, DIS=Self> {
     fn default(&self) -> Self;
 
     fn pixelize(&self, distance: DIS, kernel_size: usize) -> T;
+
+    fn save(&self, mes: String) -> Result<(), ImageError>;
 }
 
 impl Grid<bool, u32> for BitArray{
@@ -81,6 +101,10 @@ impl Grid<bool, u32> for BitArray{
         let ones = self.count_bits_on();
         ones < distance
     }
+
+    fn save(&self, mes: String) -> Result<(), ImageError>{
+        unimplemented!()
+    }
 }
 
 impl Grid<u8, f64> for Image {
@@ -105,7 +129,6 @@ impl Grid<u8, f64> for Image {
         self.pixels.len()
     }
 
-
     fn subimage(&self, x_center: usize, y_center: usize, side: usize) -> Image {
         let mut result = Image::new();
         ImageIterator::centered(x_center as isize, y_center as isize, side as isize, side as isize, 1)
@@ -124,10 +147,13 @@ impl Grid<u8, f64> for Image {
         //(units squared) * (the scaling factor) = to fit into the 255
         (distance.powf(0.5) * distance_to_pixel_scale) as u8
     }
+
+    fn save(&self, name: String) -> Result<(), ImageError>{
+        let w = self.side_size as u32;
+        //let name = format!("centroid_{}.png", mes);
+        image::save_buffer(name, self.pixels.as_ref(), w, w,image::ColorType::L8)
+    }
 }
-
-
-
 
 impl Image {
     pub fn new() -> Self {
@@ -336,6 +362,38 @@ fn read_image_file(image_file_name: &str, labels: &[u8]) -> io::Result<Vec<(u8,I
 mod tests {
     use super::*;
     use crate::timing::print_time_milliseconds;
+    use crate::load_data_set;
+    extern crate image;
+
+    const BASE_PATH: &str = "/home/david86/Y3C/DistanceMetrics/distance_research/mnist_data/";
+
+    #[test]
+    fn print_img(){
+        let train = "train";
+        let test = "t10k";
+        let train_images = load_data_set2(train).unwrap();
+        let train_labels = load_data_set2(test).unwrap();
+        let (u, img) = train_images.get(0).unwrap();
+        let w = img.side() as u32;
+        let h = img.side() as u32;
+        image::save_buffer("test.png", img.pixels.as_ref(), w, h,image::ColorType::L8).unwrap();
+
+
+
+    }
+
+    fn load_data_set2(file_prefix: &str) -> io::Result<Vec<(u8,Image)>> {
+        let train_images = format!("{}{}-images-idx3-ubyte", BASE_PATH, file_prefix);
+        let train_labels = format!("{}{}-labels-idx1-ubyte", BASE_PATH, file_prefix);
+
+
+        let training_images = print_time_milliseconds(&format!("loading mnist {} images", file_prefix),
+                                                      || init_from_files(train_images.as_str(), train_labels.as_str()))?;
+
+
+        println!("Number of {} images: {}", file_prefix, training_images.len());
+        Ok(training_images)
+    }
 
     #[test]
     fn test_img() {
