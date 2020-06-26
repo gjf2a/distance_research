@@ -1,6 +1,5 @@
 use crate::mnist_data::{Image, image_mean};
-use crate::euclidean_distance::euclidean_distance;
-use std::cmp::Ordering;
+use crate::euclidean_distance::{euclidean_distance, f64_cmp};
 use crate::convolutional::add_kernels_from_to;
 
 pub fn kernelize_single_image(img: &Image, num_kernels: usize, kernel_size: usize) -> Vec<Image> {
@@ -20,7 +19,7 @@ fn best_match_one_way(k1: &Vec<Image>, k2: &Vec<Image>) -> f64 {
     k1.iter()
         .map(|img1| k2.iter()
             .map(|img2| euclidean_distance(img1, img2))
-            .min_by(|f1, f2| f1.partial_cmp(f2).unwrap_or(Ordering::Equal))
+            .min_by(f64_cmp)
             .unwrap())
         .sum()
 }

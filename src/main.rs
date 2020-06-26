@@ -6,6 +6,7 @@ mod patch;
 mod convolutional;
 mod timing;
 mod kernel_patch;
+mod kernel_points;
 
 use std::io;
 use supervised_learning::Classifier;
@@ -17,6 +18,7 @@ use crate::convolutional::{kernelize_all, kernelized_distance};
 use crate::kernel_patch::{kernelize_single_image, best_match_distance};
 use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
+use crate::kernel_points::{find_keypoints, closest_for_all};
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
@@ -44,6 +46,7 @@ const GAUSSIAN_7: &str = "gaussian_7";
 const EQUIDISTANT_BRIEF: &str = "equidistant";
 const EQUIDISTANT_3_3_BRIEF: &str = "equidistant_3_3";
 const COMPARE_KERNELS: &str = "compare_kernels";
+const COMPARE_KEYPOINTS: &str = "compare_keypoints";
 
 fn main() -> io::Result<()> {
     let args: HashSet<String> = env::args().collect();
@@ -76,6 +79,7 @@ fn help_message() {
     println!("\t{}: Equidistant BRIEF, where each pair consists of a pixel and another at a fixed x,y offset", EQUIDISTANT_BRIEF);
     println!("\t{}: Equidistant 3x3 kernel BRIEF, comparing 3x3 neighborhoods around the pixel pairs", EQUIDISTANT_3_3_BRIEF);
     println!("\t{}: Find 8 3x3 kernels for each image; add distance from each kernel to its best match", COMPARE_KERNELS);
+    println!("\t{}: Find 8 3x3 kernels for each image; find 16 (x,y) points that best mach any of them; add distance from each point to its best match", COMPARE_KEYPOINTS);
 }
 
 fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
@@ -234,6 +238,9 @@ impl ExperimentData {
         }
         if args.contains(COMPARE_KERNELS) {
             self.build_and_test_converting_all(COMPARE_KERNELS, |images| images.iter().map(|(label, img)| (*label, kernelize_single_image(img, 8, 3))).collect(), best_match_distance);
+        }
+        if args.contains(COMPARE_KEYPOINTS) {
+            self.build_and_test_converting_all(COMPARE_KEYPOINTS, |images| images.iter().map(|(label, img)| (*label, find_keypoints(img, 8, 3, 16))).collect(), closest_for_all);
         }
     }
 

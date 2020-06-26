@@ -1,4 +1,5 @@
 use crate::mnist_data::{Image, Grid};
+use std::cmp::Ordering;
 
 pub fn euclidean_distance(img1: &Image, img2: &Image) -> f64 {
     assert_eq!(img1.side(), img2.side());
@@ -6,6 +7,10 @@ pub fn euclidean_distance(img1: &Image, img2: &Image) -> f64 {
     img1.x_y_iter()
         .map(|(x, y)| (img1.get(x, y) as f64 - img2.get(x, y) as f64).powf(2.0))
         .sum()
+}
+
+pub fn f64_cmp(f1: &f64, f2: &f64) -> Ordering {
+    f1.partial_cmp(&f2).unwrap_or(Ordering::Equal)
 }
 
 #[cfg(test)]
