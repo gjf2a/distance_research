@@ -240,7 +240,7 @@ impl ExperimentData {
             self.build_and_test_converting_all(COMPARE_KERNELS, |images| images.iter().map(|(label, img)| (*label, kernelize_single_image(img, 8, 3))).collect(), best_match_distance);
         }
         if args.contains(COMPARE_KEYPOINTS) {
-            self.build_and_test_converting_all(COMPARE_KEYPOINTS, |images| images.iter().map(|(label, img)| (*label, find_keypoints(img, 8, 3, 16))).collect(), closest_for_all);
+            self.build_and_test_converting_all(COMPARE_KEYPOINTS, |images| images.iter().map(|(label, img)| (*label, find_keypoints(img, 8, 3, 64))).collect(), closest_for_all);
         }
     }
 

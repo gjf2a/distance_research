@@ -120,7 +120,7 @@ impl PartialEq for Image {
 
 impl Eq for Image {}
 
-pub fn image_mean(images: &Vec<Image>) -> Image {
+pub fn image_mean(images: &Vec<&Image>) -> Image {
     assert!(!images.is_empty());
     assert!(images.iter().all(|img| img.pixels.len() == images[0].pixels.len()));
     let mut sums: Vec<usize> = (0..images[0].pixels.len()).map(|_| 0).collect();

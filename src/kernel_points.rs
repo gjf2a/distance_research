@@ -26,9 +26,14 @@ pub fn closest_for_all_one_way(group1: &Vec<(usize,usize)>, group2: &Vec<(usize,
 
 pub fn best_matching_distance(candidate: (usize,usize), references: &Vec<(usize,usize)>) -> usize {
     references.iter()
-        .map(|(x,y)| (x - candidate.0).pow(2) + (y - candidate.1).pow(2))
+        .map(|(x,y)| squared_diff(*x, candidate.0) + squared_diff(*y, candidate.1))
         .min()
         .unwrap()
+}
+
+pub fn squared_diff(x1: usize, x2: usize) -> usize {
+    let (min, max) = if x1 < x2 {(x1, x2)} else {(x2, x1)};
+    (max - min).pow(2)
 }
 
 pub fn best_matching_kernel_distance(kernels: &Vec<Image>, img: &Image, x: usize, y: usize) -> f64 {
