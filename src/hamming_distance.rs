@@ -4,8 +4,6 @@ pub fn hamming_distance(img1: &BitArray, img2: &BitArray) -> u32 {
     distance(img1, img2)
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -9,13 +9,6 @@ use image::ImageError;
 pub const IMAGE_DIMENSION: usize = 28;
 pub const IMAGE_BYTES: usize = IMAGE_DIMENSION * IMAGE_DIMENSION;
 
-//Image traits: Clone + Debug + Default + Eq + PartialEq + Grid<D, V>
-//NEW Image trait       -- T: Grid<D, V> + Means(Clone + PartialEq)
-//NEW Image value trait -- D: Clone + Default
-//NEW Distance trait    -- V: PartialCmp(Copy + PartialEq + PartialOrd) + Into<f64>
-//Distance Function:    -- F: Fn(&T,&T) -> V
-//Mean Function:        -- M: Fn(&Vec<T>) -> T
-
 #[derive(Clone, Debug, Default)]
 pub struct Image {
     pixels: Vec<u8>,
@@ -24,7 +17,6 @@ pub struct Image {
 
 impl Means for Image{
     fn calc_mean(&self, other: &Image) -> Image {
-
         image_mean(&vec![self.clone(), other.clone()])
     }
 
@@ -150,7 +142,7 @@ impl Grid<u8, f64> for Image {
 
     fn save(&self, name: String) -> Result<(), ImageError>{
         let w = self.side_size as u32;
-        //let name = format!("centroid_{}.png", mes);
+        let name = format!("centroid_{}.png", name);
         image::save_buffer(name, self.pixels.as_ref(), w, w,image::ColorType::L8)
     }
 }
@@ -246,11 +238,6 @@ fn bits_to_num(b: bool) -> usize{
     }
 }
 
-
-
-
-
-
 pub fn image_mean(images: &Vec<Image>) -> Image {
     assert!(!images.is_empty());
     assert!(images.iter().all(|img| img.pixels.len() == images[0].pixels.len()));
@@ -267,7 +254,6 @@ pub fn image_mean(images: &Vec<Image>) -> Image {
     }
     result
 }
-
 
 pub struct ImageIterator<N> {
     width: N,
@@ -365,7 +351,7 @@ mod tests {
     use crate::load_data_set;
     extern crate image;
 
-    const BASE_PATH: &str = "/home/david86/Y3C/DistanceMetrics/distance_research/mnist_data/";
+    const BASE_PATH: &str = "/home/david86/Y3C/DistanceMetrics/distance_research/mnist_data2/";
 
     #[test]
     fn print_img(){

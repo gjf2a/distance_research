@@ -9,6 +9,8 @@ use crate::hamming_distance::hamming_distance;
 use soc::means::traits::{Means, PartialCmp};
 extern crate image;
 
+
+
 const NUM_KERNELS: usize = 8;
 const KERNEL_SIZE: usize = 3;
 const STRIDE: usize = 2;
@@ -16,8 +18,7 @@ const STRIDE: usize = 2;
 pub trait Replicate = Clone + Default;
 pub trait CData<D: Default,V> = Grid<D, V> + Means;
 
-pub fn kernelize_all<D: Replicate, T: CData<D, V>,
-                     V: PartialCmp + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
+pub fn kernelize_all<D: Replicate, T: CData<D, V>, V: PartialCmp + Into<f64>, F:Fn(&T,&T) -> V, M: Fn(&Vec<T>) -> T>
                      (labeled_images: &Vec<(u8, T)>, levels: usize, distance: F, mean: M) -> Vec<(u8, Vec<T>)>{
     let mut images = labeled_images.iter().map(|(_,img)| img);
     let kernels = extract_kernels_from2(images, NUM_KERNELS, KERNEL_SIZE, &distance, mean);
@@ -26,7 +27,7 @@ pub fn kernelize_all<D: Replicate, T: CData<D, V>,
         kernelized.push((*label, vec![img.clone()]))
     }
     for _ in 0..levels {
-        kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels, &distance))).collect_vec();
+        kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels, &distance))).collect();
     }
     kernelized
 }
@@ -46,8 +47,8 @@ pub fn extract_kernels_from2<'a, D: Clone + Default, T: 'a + Grid<D, V> + Means,
     for img in images {
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
-    //soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
-    kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
+    soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
+    //kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
 
 }
 
@@ -72,7 +73,8 @@ pub fn extract_kernels_from
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
     println!("ADDED KERNELS");
-    kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
+    soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
+    //kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
 }
 
 pub fn project_all_through<D: Clone + Default, T: Grid<D, V> + Means,
@@ -80,7 +82,7 @@ pub fn project_all_through<D: Clone + Default, T: Grid<D, V> + Means,
                            (images: &Vec<T>, kernels: &Vec<T>, distance: &F) -> Vec<T> {
     let mut result = Vec::new();
     for img in images.iter() {
-        result.append(&mut project_image_through(Rc::new(img.to_owned()), kernels, &distance));
+        result.append(&mut project_image_through(img, kernels, &distance));
     }
 
     result
@@ -88,13 +90,13 @@ pub fn project_all_through<D: Clone + Default, T: Grid<D, V> + Means,
 
 pub fn project_image_through<D: Clone + Default, T: Grid<D, V> + Means,
                              V: PartialCmp, F:Fn(&T,&T) -> V>
-                             (img: Rc<T>, kernels: &Vec<T>, distance: &F) -> Vec<T> {
-    kernels.iter().map(|kernel| apply_kernel_to(&img, &Rc::new(kernel.to_owned()), &distance)).collect_vec()
+                             (img: &T, kernels: &Vec<T>, distance: &F) -> Vec<T> {
+    kernels.iter().map(|kernel| apply_kernel_to(img, kernel, &distance)).collect()
 }
 
 pub fn apply_kernel_to<D: Clone + Default, T: Grid<D, V> + Means,
                        V: PartialCmp, F:Fn(&T,&T) -> V>
-                       (img: &Rc<T>, kernel: &Rc<T>, distancefn: &F) -> T {
+                       (img: &T, kernel: &T, distancefn: &F) -> T {
     let mut result: T  = img.default();
     for(x, y) in img.x_y_step_iter(STRIDE){
         let subimg = &img.subimage(x, y, KERNEL_SIZE);
@@ -124,7 +126,9 @@ mod tests {
     use crate::mnist_data::image_mean;
     use bits::BitArray;
     use crate::hamming_distance::hamming_distance;
-    use crate::mnist_data;
+    use crate::{mnist_data, K};
+    use image::image_dimensions;
+    use supervised_learning::Classifier;
 
     #[test]
     fn test_kernels() {
@@ -146,6 +150,112 @@ mod tests {
         }
         true
     }
+
+    fn run_kernelize(labeled_images: &Vec<(u8, Image)>) -> Vec<(u8, Vec<Image>)>{
+        println!("Images: {:?}", labeled_images);
+        let images = labeled_images.iter().map(|(_,img)| img.clone()).collect();
+        let kernels = extract_kernels_from(&images, NUM_KERNELS, KERNEL_SIZE, &euclidean_distance, image_mean);
+        let mut kernelized = test_create_kernelized();
+        let kernelized_out: Vec<(u8,Vec<Image>)> = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels, &euclidean_distance))).collect();
+        assert_eq!(kernelized.len(), kernelized_out.len());
+        for (i, (label, imgs)) in kernelized.iter().enumerate() {
+            let (k_label, k_imgs) = kernelized_out.get(i).unwrap();
+            assert_eq!(NUM_KERNELS, k_imgs.len());
+            assert_eq!(k_label, label);
+            assert_eq!(1, imgs.len());
+            //println!("kernelized_{}: {:?}", i, k_imgs);
+        }
+        kernelized_out
+    }
+
+    #[test]
+    fn test_classify() {
+        let images = gen_images();
+        let kernels_1 = run_kernelize(&images);
+        let mut model = knn::Knn::new(K, kernelized_distance);
+        model.train(&kernels_1);
+        for (label, imgs) in kernels_1{
+            let guess = model.classify(&imgs);
+            println!("label: {}, guess: {}", label, guess);
+        }
+    }
+
+    fn test_create_kernelized() -> Vec<(u8, Vec<Image>)>{
+        let labeled_images = gen_images();
+        let mut kernelized: Vec<(u8,Vec<Image>)> = labeled_images.iter().map(|(label, img)| (*label, vec![img.clone()])).collect();
+        assert_eq!(labeled_images.len(), kernelized.len());
+        for (i, (label, img)) in labeled_images.iter().enumerate(){
+            let (k_label, k_imgs) = kernelized.get(i).unwrap();
+            assert_eq!(1, k_imgs.len());
+            let k_img = k_imgs.get(0).unwrap();
+            assert_eq!(img, k_img);
+            assert_eq!(label, k_label);
+        }
+        kernelized
+    }
+
+    fn gen_images() -> Vec<(u8, Image)>{
+        const IMAGE_NUM: usize = 30;
+        let mut kernels: Vec<(u8, Image)> = Vec::new();
+        for i in 0..IMAGE_NUM{
+            let vec: Vec<usize> = (1..10).collect();
+            let vec2: Vec<u8> = vec.iter().map(|val| (val + i) as u8).collect();
+            let image = Image::from_vec(&vec2);
+            let label = i as u8;
+            kernels.push((label, image));
+        }
+        kernels
+    }
+
+    #[test]
+    fn test_extract_kernels_from(){
+        let labeled_images = gen_images();
+        println!("Images: {:?}", labeled_images);
+        let images = labeled_images.iter().map(|(_,img)| img.clone()).collect();
+        let kernels = extract_kernels_from(&images, NUM_KERNELS, KERNEL_SIZE,&euclidean_distance, image_mean);
+        assert_eq!(NUM_KERNELS, kernels.len());
+        let sample = kernels.get(0).unwrap();
+        assert_eq!(KERNEL_SIZE, sample.side());
+        assert_eq!(KERNEL_SIZE * KERNEL_SIZE, sample.len());
+        println!("Kernels: {:?}", kernels);
+    }
+
+    #[test]
+    fn add_kernel_from_to(){
+        let image = Image::from_vec(&(1..10).collect());
+        let length = 9;
+        assert_eq!(length, image.len());
+        let mut candidates: Vec<Image> = Vec::new();
+        add_kernels_from_to(&image, &mut candidates, KERNEL_SIZE);
+        assert_eq!(length, candidates.len());
+        let sample = candidates.get(0).unwrap();
+        assert_eq!(KERNEL_SIZE, sample.side());
+        assert_eq!(KERNEL_SIZE * KERNEL_SIZE, sample.len());
+        for (i, img) in candidates.iter().enumerate(){
+            println!("img_{}: {:?}", i, img);
+        }
+    }
+
+    #[test]
+    fn test_project_image_through(){
+        const KERNELS: &str = "[Image { pixels: [0, 2, 4, 5], side_size: 2 }, Image { pixels: [2, 0, 4, 4], side_size: 2 }, Image { pixels: [2, 3, 4, 5], side_size: 2 }, Image { pixels: [3, 4, 5, 5], side_size: 2 }, Image { pixels: [4, 2, 5, 4], side_size: 2 }, Image { pixels: [4, 4, 0, 4], side_size: 2 }, Image { pixels: [5, 5, 2, 3], side_size: 2 }, Image { pixels: [5, 4, 4, 0], side_size: 2 }]";
+        const NUM_KERNELS: usize = 8;
+        const KERNEL_SIZE: usize = 3;
+        let image = Image::from_vec(&(1..10).collect());
+        let image2 = Image::from_vec(&(10..19).collect());
+        let images: Vec<Image> = vec![image.clone(), image2.clone()];
+        let kernels = extract_kernels_from(&images, NUM_KERNELS, KERNEL_SIZE, &euclidean_distance, image_mean);
+        let mut kernelized = vec![("l1".as_ptr() as u8, vec![image.clone()]), ("l2".as_ptr() as u8, vec![image2.clone()])];
+        let k1 = kernelized.iter().map( |(label, images)| (*label, project_all_through(images, &kernels, &euclidean_distance))).collect_vec();
+        let k2: Vec<(u8, Vec<Image>)> = kernelized.iter().map( |(label, images)| (*label, project_all_through(images, &kernels, &euclidean_distance))).collect();
+        for (i, (u, vec)) in k1.iter().enumerate(){
+            let (u2, image) = k2.get(i).unwrap();
+            assert_eq!(u, u2);
+            assert_eq!(vec, image);
+        }
+    }
+
+
 
     // #[test]
     // fn test_add_kernels_from_to(){

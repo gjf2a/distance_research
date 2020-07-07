@@ -3,6 +3,7 @@
 
 mod mnist_data;
 mod euclidean_distance;
+mod clustering_tests;
 mod permutation;
 mod brief;
 mod patch;
@@ -27,7 +28,7 @@ extern crate image;
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
-const BASE_PATH: &str = "/home/david86/Y3C/DistanceMetrics/distance_research/mnist_data/";
+const BASE_PATH: &str = "/Users/davidpojunas/Desktop/Y3S2/distance_research/distance_research/mnist_data2/";
 const SHRINK_FACTOR: usize = 50;
 const K: usize = 7;
 const PATCH_SIZE: usize = 3;
@@ -207,7 +208,15 @@ impl ExperimentData {
 
         let testing_images = print_time_milliseconds(&format!("converting testing images to {}", label),
                                                      || conversion(&self.testing));
-        self.model_all(label, distance, &testing_images, &training_images);
+        //self.model_all(label, distance, &testing_images, &training_images);
+        let mut model = knn::Knn::new(K, distance);
+        print_time_milliseconds(&format!("training {} model (k={})", label, K),
+                                || model.train(&training_images));
+        let outcome = print_time_milliseconds("testing", || model.test(&testing_images));
+        print!("{}", outcome);
+        let error_percentage = outcome.error_rate() * 100.0;
+        println!("Error rate: {}", error_percentage);
+        self.errors.insert(label.to_string(), error_percentage);
     }
 
     pub fn get_descriptor(&self, name: &str) -> Descriptor {
