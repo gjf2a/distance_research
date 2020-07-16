@@ -23,6 +23,19 @@ impl Means for Image{
     fn calc_means(vals: &Vec<Self>) -> Self {
         image_mean(vals)
     }
+
+    fn calc_weighted(&self, w1: f64, w2: f64, other: &Self) -> Self {
+        assert_eq!(self.pixels.len(), other.pixels.len());
+        let mut sums: Vec<f64> = Vec::new();
+        for p in 0..self.pixels.len() {
+                sums.push( (w1 * self.pixels[p] as f64) + (w2 * other.pixels[p] as f64));
+        }
+        let mut result = Image::new();
+        for sum in sums {
+            result.add(sum as u8);
+        }
+        result
+    }
 }
 
 pub trait Grid<T: Default, DIS> {
@@ -239,6 +252,23 @@ fn bits_to_num(b: bool) -> usize{
 }
 
 pub fn image_mean(images: &Vec<Image>) -> Image {
+    assert!(!images.is_empty());
+    assert!(images.iter().all(|img| img.pixels.len() == images[0].pixels.len()));
+    let mut sums: Vec<usize> = (0..images[0].pixels.len()).map(|_| 0).collect();
+    for image in images.iter() {
+        for p in 0..image.pixels.len() {
+            sums[p] += image.pixels[p] as usize;
+        }
+    }
+
+    let mut result = Image::new();
+    for sum in sums {
+        result.add((sum / images.len()) as u8);
+    }
+    result
+}
+
+pub fn image_mean_borrowed(images: &Vec<&Image>) -> Image {
     assert!(!images.is_empty());
     assert!(images.iter().all(|img| img.pixels.len() == images[0].pixels.len()));
     let mut sums: Vec<usize> = (0..images[0].pixels.len()).map(|_| 0).collect();

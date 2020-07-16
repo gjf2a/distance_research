@@ -173,9 +173,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.23.6"
+version = "0.23.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5b0553fec6407d63fe2975b794dfb099f3f790bdc958823851af37b26404ab4"
+checksum = "a2397fc43bd5648b7117aabb3c5e62d0e62c194826ec77b0b4d0c41e62744635"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -210,8 +210,8 @@ dependencies = [
 
 [[package]]
 name = "kmeans"
-version = "0.2.1"
-source = "git+https://github.com/gjf2a/kmeans#92a7c09aeb44627114fee7bddea64e09af72e7bd"
+version = "0.3.0"
+source = "git+https://github.com/gjf2a/kmeans#1de8067a0e5e79c279bd63acc37f2d2141d63383"
 dependencies = [
  "rand",
 ]
@@ -233,9 +233,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.71"
+version = "0.2.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9457b06509d27052635f90d6466700c65095fdf75409b3fbdd903e988b886f49"
+checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
 
 [[package]]
 name = "lzw"
@@ -425,8 +425,8 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "soc"
-version = "0.1.7"
-source = "git+https://github.com/davidavzP/soc#14c4309f102156eeb4f25838e02025ffda250725"
+version = "0.1.9"
+source = "git+https://github.com/davidavzP/soc#738d267f1b6c9107dc3c5d587b20ec3e1de37c0c"
 dependencies = [
  "rand",
 ]
