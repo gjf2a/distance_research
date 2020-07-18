@@ -61,7 +61,7 @@ pub mod tests{
 
     #[test]
     fn test_soc_weighted(){
-        let images = get_images("t10k");
+        let images = get_images("train");
         let soc = print_time_milliseconds("SOC clustering",
                                             || SOCluster::new_trained(NUM_CENTROIDS, &images, euclidean_distance));
         println!();
@@ -75,7 +75,7 @@ pub mod tests{
 
     #[test]
     fn test_soc_unweighted(){
-        let images = get_images("t10k");
+        let images = get_images("train");
         let soc = print_time_milliseconds("SOC unweighted clustering",
                                           || SOCluster::new_trained_unweighted(NUM_CENTROIDS, &images, euclidean_distance));
         println!();
@@ -83,7 +83,7 @@ pub mod tests{
         println!("soc unweighted counts: {:?}", counts);
         let soc_means: Vec<Image> = soc.move_clusters();
         println!();
-        //clustering_results_means_dist(&images, &soc_means, "soc");
+        clustering_results_means_dist(&images, &soc_means, "soc");
     }
 
     fn clustering_results_means_dist(images: &Vec<Image>, means: &Vec<Image>, name: &str){
@@ -146,7 +146,7 @@ pub mod tests{
 
     #[test]
     fn test_cluster_classifier_soc(){
-        let train = "t10k";
+        let train = "train";
         let train_images = load_data_set2(train).unwrap();
         let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
 
@@ -162,7 +162,7 @@ pub mod tests{
 
     #[test]
     fn test_cluster_classifier_soc_unweighted(){
-        let train = "t10k";
+        let train = "train";
         let train_images = load_data_set2(train).unwrap();
 
         let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
