@@ -47,7 +47,7 @@ pub fn extract_kernels_from2<'a, D: Clone + Default, T: 'a + Grid<D, V> + Means,
     for img in images {
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
-    soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
+    soc::SOCluster::new_trained(num_kernels, &candidates, distance).move_clusters()
     //kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
 
 }
@@ -73,7 +73,7 @@ pub fn extract_kernels_from
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
     println!("ADDED KERNELS");
-    soc::SOCluster::new_trained(num_kernels, &candidates, distance, mean).move_clusters()
+    soc::SOCluster::new_trained(num_kernels, &candidates, distance).move_clusters()
     //kmeans::Kmeans::new(num_kernels, &candidates, distance, mean).move_means()
 }
 

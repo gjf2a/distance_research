@@ -41,35 +41,49 @@ pub mod tests{
         Ok(training_images)
     }
 
-    #[test]
-    fn test_all(){
-        let train = "train";
-        println!("About to Train");
-        let train_images = load_data_set2(train).unwrap();
-        assert_eq!(NUM_TRAINING, train_images.len());
-        let images: Vec<Image> = train_images.iter().map(|(_,img)| img.clone()).collect();
+    fn get_images(name: &str) -> Vec<Image> {
+        let train_images = load_data_set2(name).unwrap();
+        train_images.iter().map(|(_,img)| img.clone()).collect()
+    }
 
-        // let kmeans =  print_time_milliseconds("Kmeans++ clustering",
-        //                                      || Kmeans::new(NUM_CENTROIDS, &images, euclidean_distance, image_mean));
-        // let kmeans_means: Vec<Image> = kmeans.move_means();
+
+    #[test]
+    fn test_kmeans(){
+        let images = get_images("train");
+        let kmeans = print_time_milliseconds("Kmeans++ clustering",
+                                          || Kmeans::new(NUM_CENTROIDS, &images, euclidean_distance, image_mean_borrowed));
         println!();
+        let kmeans_means: Vec<Image> = kmeans.move_means();
+        println!();
+        clustering_results_means_dist(&images, &kmeans_means, "kmeans");
+    }
+
+
+    #[test]
+    fn test_soc_weighted(){
+        let images = get_images("t10k");
         let soc = print_time_milliseconds("SOC clustering",
-                                            || SOCluster::new_trained(NUM_CENTROIDS, &images, euclidean_distance, image_mean));
+                                            || SOCluster::new_trained(NUM_CENTROIDS, &images, euclidean_distance));
+        println!();
+        let counts = soc.copy_counts();
+        println!("soc counts: {:?}", counts);
         let soc_means: Vec<Image> = soc.move_clusters();
-        for (i, img) in soc_means.iter().enumerate(){
-            img.save(format!("soc_{}", i));
-        }
-        println!();
-        let soc_plus = print_time_milliseconds("SOC++ clustering",
-                                          || SOCluster::new_trained_plus(NUM_CENTROIDS, &images, euclidean_distance, image_mean));
-        let soc_plus_means: Vec<Image> = soc_plus.copy_clusters();
-        println!();
-        //clustering_results_means_dist(&images, &kmeans_means, "kmeans++");
         println!();
         clustering_results_means_dist(&images, &soc_means, "soc");
-        println!();
-        clustering_results_means_dist(&images,&soc_plus_means, "soc++");
+    }
 
+
+    #[test]
+    fn test_soc_unweighted(){
+        let images = get_images("t10k");
+        let soc = print_time_milliseconds("SOC unweighted clustering",
+                                          || SOCluster::new_trained_unweighted(NUM_CENTROIDS, &images, euclidean_distance));
+        println!();
+        let counts = soc.copy_counts();
+        println!("soc unweighted counts: {:?}", counts);
+        let soc_means: Vec<Image> = soc.move_clusters();
+        println!();
+        //clustering_results_means_dist(&images, &soc_means, "soc");
     }
 
     fn clustering_results_means_dist(images: &Vec<Image>, means: &Vec<Image>, name: &str){
@@ -115,21 +129,56 @@ pub mod tests{
     }
 
     #[test]
-    fn test_cluster_classifier(){
+    fn test_cluster_classifier_kmeans(){
         let train = "train";
         let train_images = load_data_set2(train).unwrap();
         assert_eq!(NUM_TRAINING, train_images.len());
         let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
 
-        // let kmeans =  print_time_milliseconds("Kmeans++ clustering",
-        //                                       || Kmeans::new(NUM_CENTROIDS, &images, euclidean_distance, image_mean_borrowed));
-        // let kmeans_means: Vec<Image> = kmeans.move_means();
+        let kmeans = print_time_milliseconds("Kmeans++ clustering",
+                                          || Kmeans::new(NUM_CENTROIDS, &images, euclidean_distance, image_mean_borrowed));
+        println!();
+        let means = kmeans.move_means();
+
+        classify_label(&train_images, &means);
+    }
+
+
+    #[test]
+    fn test_cluster_classifier_soc(){
+        let train = "t10k";
+        let train_images = load_data_set2(train).unwrap();
+        let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
 
         let soc = print_time_milliseconds("SOC++ weighted clustering",
-                                          || SOCluster::new_trained_plus(NUM_CENTROIDS, &images, euclidean_distance, image_mean));
+                                          || SOCluster::new_trained(NUM_CENTROIDS, &images, euclidean_distance));
+        println!();
+        let counts = soc.copy_counts();
+        println!("soc++ unweighted counts: {:?}", counts);
         let means = soc.move_clusters();
 
-        let label_histogram = label_classifier(&train_images, &means);
+        classify_label(&train_images, &means);
+    }
+
+    #[test]
+    fn test_cluster_classifier_soc_unweighted(){
+        let train = "t10k";
+        let train_images = load_data_set2(train).unwrap();
+
+        let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
+
+        let soc = print_time_milliseconds("SOC++ unweighted clustering",
+                                          || SOCluster::new_trained_unweighted(NUM_CENTROIDS, &images, euclidean_distance));
+        println!();
+        let counts = soc.copy_counts();
+        println!("soc++ weighted counts: {:?}", counts);
+        let means = soc.move_clusters();
+
+        classify_label(&train_images, &means);
+    }
+
+    fn classify_label(train_images: &Vec<(u8, Image)>, means: &Vec<Image>){
+        let label_histogram = label_classifier(train_images, &means);
 
         let test = "t10k";
         let test_images = load_data_set2(test).unwrap();
@@ -152,8 +201,6 @@ pub mod tests{
         println!();
         println!("Test Results: ");
         println!("correct: {}, incorrect: {}", results.get(true), results.get(false));
-
-
     }
 
     fn label_classifier(images: &Vec<(u8, Image)>, means: &Vec<Image>) -> Vec<HashHistogram<u8>> {

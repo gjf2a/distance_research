@@ -425,8 +425,8 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "soc"
-version = "0.1.9"
-source = "git+https://github.com/davidavzP/soc#738d267f1b6c9107dc3c5d587b20ec3e1de37c0c"
+version = "0.2.0"
+source = "git+https://github.com/davidavzP/soc#ea0e2c948b6947f00449c6853c0b301ae92635c8"
 dependencies = [
  "rand",
 ]
