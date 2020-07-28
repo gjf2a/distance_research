@@ -1,4 +1,5 @@
 use std::f64::NAN;
+use std::{thread, time};
 
 pub fn classify<T: Clone + PartialEq, V: Copy + PartialEq + PartialOrd, D: Fn(&T,&T) -> V>(target: &T, means: &Vec<T>, distance: &D) -> (V, usize) {
     let distances: Vec<(V,usize)> = (0..means.len())
@@ -16,7 +17,7 @@ pub mod tests{
     use super::*;
     use soc::*;
     use kmeans::*;
-    use std::io;
+    use std::{io};
     use crate::mnist_data::{Image, init_from_files, image_mean, Grid, image_mean_borrowed};
     use crate::timing::print_time_milliseconds;
     use crate::euclidean_distance::euclidean_distance;
@@ -24,11 +25,15 @@ pub mod tests{
     use std::collections::BTreeSet;
     use std::cmp::{max, min};
     use itertools::Itertools;
+    use std::sync::{Arc, Mutex};
+    use std::borrow::Borrow;
 
     const BASE_PATH: &str = "/Users/david/Desktop/RustProjects/distance_research/distance_research/mnist_data2/";
-    const NUM_CENTROIDS: usize = 8;
+    const NUM_CENTROIDS: usize = 12;
     const NUM_TRAINING: usize = 60000;
     const NUM_TESTING: usize = 10000;
+
+    //TODO: Make all images through a clustering done at the beginning
 
     fn load_data_set2(file_prefix: &str) -> io::Result<Vec<(u8,Image)>> {
         let train_images = format!("{}{}-images-idx3-ubyte", BASE_PATH, file_prefix);
@@ -45,6 +50,7 @@ pub mod tests{
         let train_images = load_data_set2(name).unwrap();
         train_images.iter().map(|(_,img)| img.clone()).collect()
     }
+
 
 
     #[test]
@@ -129,6 +135,64 @@ pub mod tests{
     }
 
     #[test]
+    fn test_all_clusters() {
+        //8 clusters 10000 images
+        let mut handles = vec![];
+        let load = get_images("train");
+        println!("finished loading");
+        let images = Arc::new(load);
+
+        let b =Arc::clone(&images);
+        let handle2 = thread::spawn( move|| test_cluster_counts_soc_weighted(&b));
+        handles.push(handle2);
+
+        let b =Arc::clone(&images);
+        let handle3 = thread::spawn( move|| test_cluster_counts_soc_unweighted(&b));
+        handles.push(handle3);
+
+        let b =Arc::clone(&images);
+        let handle1 = thread::spawn( move|| test_cluster_counts_kmeans(&b));
+        handles.push(handle1);
+
+        for handle in handles{
+            handle.join().unwrap();
+        }
+
+
+    }
+
+    fn test_cluster_counts_kmeans(images: &Vec<Image>){
+        let kmeans = print_time_milliseconds("Kmeans++ clustering",
+                                             || Kmeans::new(NUM_CENTROIDS, images, euclidean_distance, image_mean_borrowed));
+        println!();
+        let means = kmeans.move_means();
+
+        get_clustering_counts("Kmeans++ clustering", &images, &means);
+    }
+
+    fn test_cluster_counts_soc_weighted(images: &Vec<Image>){
+        let soc = print_time_milliseconds("SOC weighted clustering",
+                                            || SOCluster::new_trained(NUM_CENTROIDS, images, euclidean_distance));
+        let counts = soc.copy_counts();
+        let means = soc.move_clusters();
+        println!("Direct Counts: {:?}", counts);
+
+        println!();
+        get_clustering_counts("SOC weighted", &images, &means);
+    }
+
+    fn test_cluster_counts_soc_unweighted(images: &Vec<Image>){
+        let soc = print_time_milliseconds("SOC unweighted clustering",
+                                          || SOCluster::new_trained_unweighted(NUM_CENTROIDS, images, euclidean_distance));
+        let counts = soc.copy_counts();
+        let means = soc.move_clusters();
+        println!("Direct Counts: {:?}", counts);
+
+        println!();
+        get_clustering_counts("SOC unweighted", &images, &means);
+    }
+
+    #[test]
     fn test_cluster_classifier_kmeans(){
         let train = "train";
         let train_images = load_data_set2(train).unwrap();
@@ -136,13 +200,12 @@ pub mod tests{
         let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
 
         let kmeans = print_time_milliseconds("Kmeans++ clustering",
-                                          || Kmeans::new(NUM_CENTROIDS, &images, euclidean_distance, image_mean_borrowed));
+                                             || Kmeans::new(NUM_CENTROIDS, &images, euclidean_distance, image_mean_borrowed));
         println!();
         let means = kmeans.move_means();
 
         classify_label(&train_images, &means);
     }
-
 
     #[test]
     fn test_cluster_classifier_soc(){
@@ -153,8 +216,6 @@ pub mod tests{
         let soc = print_time_milliseconds("SOC++ weighted clustering",
                                           || SOCluster::new_trained(NUM_CENTROIDS, &images, euclidean_distance));
         println!();
-        let counts = soc.copy_counts();
-        println!("soc++ unweighted counts: {:?}", counts);
         let means = soc.move_clusters();
 
         classify_label(&train_images, &means);
@@ -170,21 +231,33 @@ pub mod tests{
         let soc = print_time_milliseconds("SOC++ unweighted clustering",
                                           || SOCluster::new_trained_unweighted(NUM_CENTROIDS, &images, euclidean_distance));
         println!();
-        let counts = soc.copy_counts();
-        println!("soc++ weighted counts: {:?}", counts);
         let means = soc.move_clusters();
 
         classify_label(&train_images, &means);
     }
 
+    fn get_clustering_counts(name: &str, data: &Vec<Image>, means: &Vec<Image>){
+        let mut counts: Vec<usize> = (0..means.len()).map(|_| 0).collect();
+        for img in data{
+            let closest: (f64, usize) = classify(img, &means, &euclidean_distance);
+            counts[closest.1] += 1;
+        }
+
+        println!();
+        println!("{} Counts: {:?}", name, counts);
+
+    }
+
     fn classify_label(train_images: &Vec<(u8, Image)>, means: &Vec<Image>){
         let label_histogram = label_classifier(train_images, &means);
+        assert_eq!(means.len(), label_histogram.len());
 
         let test = "t10k";
         let test_images = load_data_set2(test).unwrap();
-        assert_eq!(NUM_TESTING, test_images.len());
+
 
         let mut results: HashHistogram<bool> = HashHistogram::new();
+
         for (label, img) in test_images{
             let closest: (f64, usize) = classify(&img, &means, &euclidean_distance);
             let guessed_label = label_histogram[closest.1].mode();
@@ -201,6 +274,7 @@ pub mod tests{
         println!();
         println!("Test Results: ");
         println!("correct: {}, incorrect: {}", results.get(true), results.get(false));
+
     }
 
     fn label_classifier(images: &Vec<(u8, Image)>, means: &Vec<Image>) -> Vec<HashHistogram<u8>> {

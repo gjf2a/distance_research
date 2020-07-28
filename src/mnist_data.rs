@@ -26,7 +26,6 @@ impl Means for Image{
 
     fn calc_weighted(&self, w1: f64, w2: f64, other: &Self) -> Self {
         assert_eq!(self.pixels.len(), other.pixels.len());
-        //assert that tge sum is <0 an >255
         let mut sums: Vec<f64> = Vec::new();
         for p in 0..self.pixels.len() {
                 sums.push( (w1 * self.pixels[p] as f64) + (w2 * other.pixels[p] as f64));
