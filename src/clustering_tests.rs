@@ -1,5 +1,9 @@
 use std::f64::NAN;
 use std::{thread, time};
+use crate::mnist_data::Image;
+use rand::thread_rng;
+use rand::distributions::{Uniform, Distribution};
+use soc::means::traits::Means;
 
 pub fn classify<T: Clone + PartialEq, V: Copy + PartialEq + PartialOrd, D: Fn(&T,&T) -> V>(target: &T, means: &Vec<T>, distance: &D) -> (V, usize) {
     let distances: Vec<(V,usize)> = (0..means.len())
@@ -11,7 +15,34 @@ pub fn classify<T: Clone + PartialEq, V: Copy + PartialEq + PartialOrd, D: Fn(&T
     (y.0, y.1)
 }
 
+fn build_random_clusters(k: usize, data: &Vec<Image>) -> (Vec<Image>, Vec<usize>){
+    let (centroids, images) = data.split_at(k);
+    let mut result = centroids.to_vec();
+    let mut counts: Vec<usize> = (0..k).map(|_| 0).collect();
+    let mut rng = thread_rng();
+    let uniform = Uniform::new(0, k);
+    for image in images{
+        let removal = uniform.sample(&mut rng);
+        counts[removal] += 1;
+        result.insert(removal, image.clone());
+    }
+    (result, counts)
+}
 
+fn random_clustering(k: usize, data: &Vec<Image>) -> Vec<Image>{
+    let (centroids, images) = data.split_at(k);
+    let mut result = centroids.to_vec();
+    let mut counts: Vec<usize> = (0..k).map(|_| 0).collect();
+    let mut rng = thread_rng();
+    let uniform = Uniform::new(0, k);
+    for (i, image) in images.iter().enumerate(){
+        let removal = uniform.sample(&mut rng);
+        counts[removal] += 1;
+        result[removal] = result[removal].calc_mean(image);
+        println!("{}", i);
+    }
+    result
+}
 
 pub mod tests{
     use super::*;
@@ -26,14 +57,17 @@ pub mod tests{
     use std::cmp::{max, min};
     use itertools::Itertools;
     use std::sync::{Arc, Mutex};
-    use std::borrow::Borrow;
 
     const BASE_PATH: &str = "/Users/david/Desktop/RustProjects/distance_research/distance_research/mnist_data2/";
-    const NUM_CENTROIDS: usize = 12;
+    const NUM_CENTROIDS: usize = 8;
     const NUM_TRAINING: usize = 60000;
     const NUM_TESTING: usize = 10000;
 
     //TODO: Make all images through a clustering done at the beginning
+
+    //mean medium and stdev
+    //just go with kmeans initalizer -> classifier
+    //add new methods for weighting
 
     fn load_data_set2(file_prefix: &str) -> io::Result<Vec<(u8,Image)>> {
         let train_images = format!("{}{}-images-idx3-ubyte", BASE_PATH, file_prefix);
@@ -51,7 +85,31 @@ pub mod tests{
         train_images.iter().map(|(_,img)| img.clone()).collect()
     }
 
+    #[test]
+    fn test_random_clustering(){
+        println!("testing before");
+        let train = "train";
+        let train_images = load_data_set2(train).unwrap();
+        let images: Vec<Image>= train_images.iter().map(|(_,img)| img.clone()).collect();
+        println!("testing after");
+        let means = random_clustering(NUM_CENTROIDS, &images);
+        classify_label(&train_images, &means);
+    }
 
+
+    #[test]
+    fn run_random_cluster_picker(){
+        let images = get_images("t10k");
+        assert_eq!(images.len(), 10000);
+        let (left, right) = images.split_at(100);
+        let (left2, right2) = right.split_at(1000);
+        let (clusters3, counts3) = build_random_clusters(NUM_CENTROIDS, &left.to_vec());
+        let (clusters2, counts2) = build_random_clusters(NUM_CENTROIDS, &left2.to_vec());
+        let (clusters, counts) = build_random_clusters(NUM_CENTROIDS, &images);
+        println!("Unifom Counts 10000: {:?}", counts);
+        println!("Unifom Counts 1000: {:?}", counts2);
+        println!("Unifom Counts 100: {:?}", counts3);
+    }
 
     #[test]
     fn test_kmeans(){
@@ -90,6 +148,20 @@ pub mod tests{
         let soc_means: Vec<Image> = soc.move_clusters();
         println!();
         clustering_results_means_dist(&images, &soc_means, "soc");
+    }
+
+    #[test]
+    fn test_uniform_random(){
+        println!("FIRST!");
+        let images = get_images("train");
+        println!("{}", images.len());
+        // let uniform = build_random_clusters(NUM_CENTROIDS, &images);
+        // println!("Counts: ");
+        // get_clustering_counts("Uniform Random", &images, &uniform.0);
+        // println!();
+        // println!("Means: ");
+        // clustering_results_means_dist(&images, &uniform.0, "Uniform Random");
+
     }
 
     fn clustering_results_means_dist(images: &Vec<Image>, means: &Vec<Image>, name: &str){
@@ -138,7 +210,7 @@ pub mod tests{
     fn test_all_clusters() {
         //8 clusters 10000 images
         let mut handles = vec![];
-        let load = get_images("train");
+        let load = get_images("t10k");
         println!("finished loading");
         let images = Arc::new(load);
 

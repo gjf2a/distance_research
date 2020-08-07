@@ -1,0 +1,12 @@
+C:\Users\david\Desktop\RustProjects\distance_research\distance_research\target\release\deps\gif-fcc61396eba5be0a.rmeta: C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\lib.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\traits.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\common.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\mod.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\decoder.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\encoder.rs
+
+C:\Users\david\Desktop\RustProjects\distance_research\distance_research\target\release\deps\libgif-fcc61396eba5be0a.rlib: C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\lib.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\traits.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\common.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\mod.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\decoder.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\encoder.rs
+
+C:\Users\david\Desktop\RustProjects\distance_research\distance_research\target\release\deps\gif-fcc61396eba5be0a.d: C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\lib.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\traits.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\common.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\mod.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\decoder.rs C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\encoder.rs
+
+C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\lib.rs:
+C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\traits.rs:
+C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\common.rs:
+C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\mod.rs:
+C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\reader\decoder.rs:
+C:\Users\david\.cargo\registry\src\github.com-1ecc6299db9ec823\gif-0.10.3\src\encoder.rs:
