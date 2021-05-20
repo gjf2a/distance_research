@@ -7,6 +7,7 @@ mod convolutional;
 mod timing;
 mod kernel_patch;
 mod kernel_points;
+mod sobel;
 
 use std::io;
 use supervised_learning::Classifier;
@@ -19,6 +20,7 @@ use crate::kernel_patch::{kernelize_single_image, best_match_distance};
 use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
 use crate::kernel_points::{find_keypoints, closest_for_all};
+use crate::sobel::edge_image;
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
@@ -47,6 +49,7 @@ const EQUIDISTANT_BRIEF: &str = "equidistant";
 const EQUIDISTANT_3_3_BRIEF: &str = "equidistant_3_3";
 const COMPARE_KERNELS: &str = "compare_kernels";
 const COMPARE_KEYPOINTS: &str = "compare_keypoints";
+const SOBEL_DIST: &str = "edge_distance";
 
 fn main() -> io::Result<()> {
     let args: HashSet<String> = env::args().collect();
@@ -80,6 +83,7 @@ fn help_message() {
     println!("\t{}: Equidistant 3x3 kernel BRIEF, comparing 3x3 neighborhoods around the pixel pairs", EQUIDISTANT_3_3_BRIEF);
     println!("\t{}: Find 8 3x3 kernels for each image; add distance from each kernel to its best match", COMPARE_KERNELS);
     println!("\t{}: Find 8 3x3 kernels for each image; find 16 (x,y) points that best mach any of them; add distance from each point to its best match", COMPARE_KEYPOINTS);
+    println!("\t{}: Euclidean distance between Sobel edge images", SOBEL_DIST);
 }
 
 fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
@@ -235,6 +239,9 @@ impl ExperimentData {
         }
         if args.contains(CONVOLUTIONAL_1) {
             self.build_and_test_converting_all(CONVOLUTIONAL_1, |images| kernelize_all(images, 1), kernelized_distance);
+        }
+        if args.contains(SOBEL_DIST) {
+            self.build_and_test_converting_all(SOBEL_DIST, |images| images.iter().map(|(label, img)| (*label, edge_image(img))).collect(), euclidean_distance::euclidean_distance);
         }
         if args.contains(COMPARE_KERNELS) {
             self.build_and_test_converting_all(COMPARE_KERNELS, |images| images.iter().map(|(label, img)| (*label, kernelize_single_image(img, 8, 3))).collect(), best_match_distance);

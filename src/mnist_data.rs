@@ -62,6 +62,14 @@ impl Image {
         Default::default()
     }
 
+    pub fn filter(&self, filter_fn: fn(&Image, usize, usize)->u8) -> Self {
+        let mut result = Image::new();
+        for (x, y) in self.x_y_iter() {
+            result.add(filter_fn(self, x, y));
+        }
+        result
+    }
+
     #[cfg(test)]
     pub fn from_vec(v: &Vec<u8>) -> Image {
         let mut result = Image::new();

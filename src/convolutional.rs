@@ -7,10 +7,15 @@ const KERNEL_SIZE: usize = 3;
 const STRIDE: usize = 2;
 
 pub fn kernelize_all(labeled_images: &Vec<(u8,Image)>, levels: usize) -> Vec<(u8,Vec<Image>)> {
-    let kernels = extract_kernels_from(&(labeled_images.iter().map(|(_,img)| img.clone()).collect()), NUM_KERNELS, KERNEL_SIZE);
-    let mut kernelized: Vec<(u8,Vec<Image>)> = labeled_images.iter().map(|(label, img)| (*label, vec![img.clone()])).collect();
+    let images_only = labeled_images.iter().map(|(_,img)| img.clone()).collect();
+    let kernels = extract_kernels_from(&images_only, NUM_KERNELS, KERNEL_SIZE);
+    let mut kernelized: Vec<(u8,Vec<Image>)> = labeled_images.iter()
+        .map(|(label, img)| (*label, vec![img.clone()]))
+        .collect();
     for _ in 0..levels {
-        kernelized = kernelized.iter().map(|(label, images)| (*label, project_all_through(images, &kernels))).collect();
+        kernelized = kernelized.iter()
+            .map(|(label, images)| (*label, project_all_through(images, &kernels)))
+            .collect();
     }
     kernelized
 }
