@@ -1,13 +1,13 @@
 use crate::mnist_data::{Image, Grid};
 use crate::kernel_patch::kernelize_single_image;
-use crate::euclidean_distance::{euclidean_distance, f64_cmp};
+use crate::euclidean_distance::euclidean_distance;
 
 pub fn find_keypoints(img: &Image, num_kernels: usize, kernel_size: usize, num_keypoints: usize) -> Vec<(usize, usize)> {
     let kernels = kernelize_single_image(img, num_kernels, kernel_size);
-    let mut dists: Vec<(f64, usize, usize)> = img.x_y_step_iter(1)
+    let mut dists: Vec<(u32, usize, usize)> = img.x_y_step_iter(1)
         .map(|(x, y)| (best_matching_kernel_distance(&kernels, img, x, y), x, y))
         .collect();
-    dists.sort_by(|(d1,_,_), (d2, _, _)| f64_cmp(d1, d2));
+    dists.sort();
     dists.iter()
         .take(num_keypoints)
         .map(|(_, x, y)| (*x, *y))
@@ -36,9 +36,9 @@ pub fn squared_diff(x1: usize, x2: usize) -> usize {
     (max - min).pow(2)
 }
 
-pub fn best_matching_kernel_distance(kernels: &Vec<Image>, img: &Image, x: usize, y: usize) -> f64 {
+pub fn best_matching_kernel_distance(kernels: &Vec<Image>, img: &Image, x: usize, y: usize) -> u32 {
     (0..kernels.len())
         .map(|i| euclidean_distance(&img.subimage(x, y, kernels[i].side()), &kernels[i]))
-        .min_by(|d1, d2| f64_cmp(d1, d2))
+        .min()
         .unwrap()
 }

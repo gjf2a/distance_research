@@ -8,6 +8,7 @@ mod timing;
 mod kernel_patch;
 mod kernel_points;
 mod sobel;
+mod convolution2;
 
 use std::io;
 use supervised_learning::Classifier;

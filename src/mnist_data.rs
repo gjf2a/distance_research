@@ -130,7 +130,7 @@ impl Eq for Image {}
 
 pub fn image_mean(images: &Vec<&Image>) -> Image {
     assert!(!images.is_empty());
-    assert!(images.iter().all(|img| img.pixels.len() == images[0].pixels.len()));
+    assert!(images.iter().all(|img| img.len() == images[0].len()));
     let mut sums: Vec<usize> = (0..images[0].pixels.len()).map(|_| 0).collect();
     for image in images.iter() {
         for p in 0..image.pixels.len() {
