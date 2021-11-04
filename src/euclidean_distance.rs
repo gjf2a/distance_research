@@ -5,7 +5,7 @@ pub fn euclidean_distance(img1: &Image, img2: &Image) -> u32 {
     assert_eq!(img1.side(), img2.side());
     assert_eq!(img1.len(), img2.len());
     img1.x_y_iter()
-        .map(|(x, y)| (img1.get(x, y) as i16 - img2.get(x, y) as i16).pow(2) as u32)
+        .map(|(x, y)| (img1.get(x, y) as i32 - img2.get(x, y) as i32).pow(2) as u32)
         .sum()
 }
 

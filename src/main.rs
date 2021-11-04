@@ -8,7 +8,7 @@ mod timing;
 mod kernel_patch;
 mod kernel_points;
 mod sobel;
-mod convolution2;
+mod convolution_pyramid;
 
 use std::io;
 use supervised_learning::Classifier;
@@ -22,6 +22,7 @@ use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
 use crate::kernel_points::{find_keypoints, closest_for_all};
 use crate::sobel::edge_image;
+use crate::convolution_pyramid::{kernel_stack_all, KernelPyramidImage};
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
@@ -42,6 +43,7 @@ const BASELINE: &str = "baseline";
 const BRIEF: &str = "brief";
 const UNIFORM_BRIEF: &str = "uniform_brief";
 const CONVOLUTIONAL_1: &str = "convolutional1";
+const CONVOLUTIONAL_PYRAMID: &str = "convolutional_pyramid";
 const PATCH: &str = "patch";
 const UNIFORM_NEIGHBORS: &str = "uniform_neighbors";
 const GAUSSIAN_NEIGHBORS: &str = "gaussian_neighbors";
@@ -73,6 +75,7 @@ fn help_message() {
     println!("All variants describe a knn (k=7) distance function variation:");
     println!("\t{}: Euclidean", BASELINE);
     println!("\t{}: Convolutional Euclidean (1 level)", CONVOLUTIONAL_1);
+    println!("\t{}: Convolutional pyramid", CONVOLUTIONAL_PYRAMID);
     println!("\t{}: Uniform Classical BRIEF descriptors", UNIFORM_BRIEF);
     println!("\t{}: Gaussian Classical BRIEF descriptors", BRIEF);
     println!("\t{}: 3x3 Neighbor BRIEF descriptors", PATCH);
@@ -240,6 +243,9 @@ impl ExperimentData {
         }
         if args.contains(CONVOLUTIONAL_1) {
             self.build_and_test_converting_all(CONVOLUTIONAL_1, |images| kernelize_all(images, 1), kernelized_distance);
+        }
+        if args.contains(CONVOLUTIONAL_PYRAMID) {
+            self.build_and_test_converting_all(CONVOLUTIONAL_PYRAMID, |images| kernel_stack_all(images, 8, 2), KernelPyramidImage::distance);
         }
         if args.contains(SOBEL_DIST) {
             self.build_and_test_converting_all(SOBEL_DIST, |images| images.iter().map(|(label, img)| (*label, edge_image(img))).collect(), euclidean_distance::euclidean_distance);

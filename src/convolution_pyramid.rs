@@ -33,7 +33,7 @@ const KERNEL_SIZE: usize = 3;
 const STRIDE: usize = 2;
 
 #[derive(Copy, Clone, PartialEq)]
-struct KernelPyramidDistance {
+pub struct KernelPyramidDistance {
     num_levels_identical: usize,
     distance_level_n: u32
 }
@@ -57,7 +57,8 @@ impl Into<f64> for KernelPyramidDistance {
 }
  */
 
-struct KernelPyramidImage {
+#[derive(Clone)]
+pub struct KernelPyramidImage {
     original: Image,
     indexed_kernel_images: Vec<Image>
 }
@@ -91,22 +92,23 @@ impl KernelPyramidImage {
     }
 }
 
-
-
-fn kernel_stack_all(labeled_images: &Vec<(u8,Image)>, num_kernels: u8, num_levels: usize) -> Vec<(u8, KernelPyramidImage)> {
+pub fn kernel_stack_all(labeled_images: &Vec<(u8,Image)>, num_kernels: u8, num_levels: usize) -> Vec<(u8, KernelPyramidImage)> {
     let images_only = labeled_images.iter()
         .map(|(_,img)| img.clone())
         .collect();
+    println!("We have images.");
     let kernels = extract_kernels_from(&images_only, num_kernels as usize,
                                        KERNEL_SIZE);
-
+    println!("We have kernels.");
     let mut pyramid_images = labeled_images.iter()
         .map(|(label, img)| (*label, KernelPyramidImage {original: img.clone(),
             indexed_kernel_images: vec![indexed_kernel_image(&img, &kernels, &euclidean_distance)]}))
         .collect();
+    println!("We have pyramids.");
 
-    for _ in 0..num_levels {
+    for level in 0..num_levels {
         add_pyramid_level(&mut pyramid_images, num_kernels);
+        println!("Added level {}", level);
     }
 
     pyramid_images

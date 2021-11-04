@@ -30,6 +30,7 @@ pub fn extract_kernels_from(images: &Vec<Image>, num_kernels: usize, kernel_size
     for img in images.iter() {
         add_kernels_from_to(img, &mut candidates, kernel_size);
     }
+    println!("Found all candidate kernels from images.");
     kmeans::Kmeans::new(num_kernels, &candidates, euclidean_distance, image_mean).move_means()
 }
 
