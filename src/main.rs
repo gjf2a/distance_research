@@ -22,7 +22,7 @@ use crate::patch::patchify;
 use crate::timing::print_time_milliseconds;
 use crate::kernel_points::{find_keypoints, closest_for_all};
 use crate::sobel::edge_image;
-use crate::convolution_pyramid::{kernel_stack_all, KernelPyramidImage};
+use crate::convolution_pyramid::{kernel_stack_all, KernelPyramidImage, get_kernels_from};
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
@@ -245,7 +245,8 @@ impl ExperimentData {
             self.build_and_test_converting_all(CONVOLUTIONAL_1, |images| kernelize_all(images, 1), kernelized_distance);
         }
         if args.contains(CONVOLUTIONAL_PYRAMID) {
-            self.build_and_test_converting_all(CONVOLUTIONAL_PYRAMID, |images| kernel_stack_all(images, 8, 2), KernelPyramidImage::distance);
+            let kernels = get_kernels_from(&self.training, 8);
+            self.build_and_test_converting_all(CONVOLUTIONAL_PYRAMID, |images| kernel_stack_all(images, &kernels, 2), KernelPyramidImage::distance);
         }
         if args.contains(SOBEL_DIST) {
             self.build_and_test_converting_all(SOBEL_DIST, |images| images.iter().map(|(label, img)| (*label, edge_image(img))).collect(), euclidean_distance::euclidean_distance);
