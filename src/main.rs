@@ -1,38 +1,25 @@
-mod mnist_data;
-mod euclidean_distance;
-mod permutation;
-mod brief;
-mod patch;
-mod convolutional;
-mod timing;
-mod kernel_patch;
-mod kernel_points;
-mod sobel;
-mod convolution_pyramid;
-
 use std::io;
 use supervised_learning::Classifier;
-use crate::mnist_data::Image;
+use distance_research::mnist_data::{Image, load_data_set};
 use std::env;
 use std::collections::{HashSet, BTreeMap, HashMap};
-use crate::brief::Descriptor;
-use crate::convolutional::{kernelize_all, kernelized_distance};
-use crate::kernel_patch::{kernelize_single_image, best_match_distance};
-use crate::patch::patchify;
-use crate::timing::print_time_milliseconds;
-use crate::kernel_points::{find_keypoints, closest_for_all};
-use crate::sobel::edge_image;
-use crate::convolution_pyramid::{kernel_stack_all, KernelPyramidImage, get_kernels_from};
+use distance_research::brief::Descriptor;
+use distance_research::convolutional::{kernelize_all, kernelized_distance};
+use distance_research::kernel_patch::{kernelize_single_image, best_match_distance};
+use distance_research::patch::patchify;
+use distance_research::timing::print_time_milliseconds;
+use distance_research::kernel_points::{find_keypoints, closest_for_all};
+use distance_research::sobel::edge_image;
+use distance_research::convolution_pyramid::{kernel_stack_all, KernelPyramidImage, get_kernels_from};
 
 const SHRINK_SEQUENCE: [usize; 5] = [50, 20, 10, 5, 2];
 
-const BASE_PATH: &str = "/Users/ferrer/Desktop/mnist_data/";
 const SHRINK_FACTOR: usize = 50;
 const K: usize = 7;
 const PATCH_SIZE: usize = 3;
 const NUM_NEIGHBORS: usize = 8;
-const CLASSIC_BRIEF_PAIRS: usize = mnist_data::IMAGE_DIMENSION * mnist_data::IMAGE_DIMENSION * NUM_NEIGHBORS;
-const EQUIDISTANT_OFFSET: usize = mnist_data::IMAGE_DIMENSION / 3;
+const CLASSIC_BRIEF_PAIRS: usize = distance_research::mnist_data::IMAGE_DIMENSION * distance_research::mnist_data::IMAGE_DIMENSION * NUM_NEIGHBORS;
+const EQUIDISTANT_OFFSET: usize = distance_research::mnist_data::IMAGE_DIMENSION / 3;
 
 const HELP: &str = "help";
 const SHRINK: &str = "shrink";
@@ -97,15 +84,15 @@ fn train_and_test(args: &HashSet<String>) -> io::Result<()> {
     if args.contains(SEQ) {
         for shrink in SHRINK_SEQUENCE.iter() {
             println!("Shrinking by {}", shrink);
-            run_experiments(args, mnist_data::discard(&training_images, *shrink),
-                            mnist_data::discard(&testing_images, *shrink))?;
+            run_experiments(args, distance_research::mnist_data::discard(&training_images, *shrink),
+                            distance_research::mnist_data::discard(&testing_images, *shrink))?;
         }
 
     } else {
         if args.contains(SHRINK) {
             println!("Shrinking by {}", SHRINK_FACTOR);
-            training_images = mnist_data::discard(&training_images, SHRINK_FACTOR);
-            testing_images = mnist_data::discard(&testing_images, SHRINK_FACTOR);
+            training_images = distance_research::mnist_data::discard(&training_images, SHRINK_FACTOR);
+            testing_images = distance_research::mnist_data::discard(&testing_images, SHRINK_FACTOR);
         }
 
         run_experiments(args, training_images, testing_images)?;
@@ -122,18 +109,18 @@ fn run_experiments(args: &HashSet<String>, training_images: Vec<(u8,Image)>, tes
         errors: BTreeMap::new()
     };
 
-    data.add_descriptor(BRIEF, brief::Descriptor::classic_gaussian_brief(CLASSIC_BRIEF_PAIRS, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
-    data.add_descriptor(UNIFORM_BRIEF, brief::Descriptor::classic_uniform_brief(CLASSIC_BRIEF_PAIRS, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
-    data.add_descriptor(UNIFORM_NEIGHBORS, brief::Descriptor::uniform_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
-    data.add_descriptor(GAUSSIAN_NEIGHBORS, brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION / 3, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
-    data.add_descriptor(GAUSSIAN_7, brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, mnist_data::IMAGE_DIMENSION / 7, mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION));
-    data.add_descriptor(EQUIDISTANT_BRIEF, brief::Descriptor::equidistant(mnist_data::IMAGE_DIMENSION, mnist_data::IMAGE_DIMENSION, EQUIDISTANT_OFFSET, EQUIDISTANT_OFFSET));
+    data.add_descriptor(BRIEF, distance_research::brief::Descriptor::classic_gaussian_brief(CLASSIC_BRIEF_PAIRS, distance_research::mnist_data::IMAGE_DIMENSION, distance_research::mnist_data::IMAGE_DIMENSION));
+    data.add_descriptor(UNIFORM_BRIEF, distance_research::brief::Descriptor::classic_uniform_brief(CLASSIC_BRIEF_PAIRS, distance_research::mnist_data::IMAGE_DIMENSION, distance_research::mnist_data::IMAGE_DIMENSION));
+    data.add_descriptor(UNIFORM_NEIGHBORS, distance_research::brief::Descriptor::uniform_neighbor(NUM_NEIGHBORS, distance_research::mnist_data::IMAGE_DIMENSION, distance_research::mnist_data::IMAGE_DIMENSION));
+    data.add_descriptor(GAUSSIAN_NEIGHBORS, distance_research::brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, distance_research::mnist_data::IMAGE_DIMENSION / 3, distance_research::mnist_data::IMAGE_DIMENSION, distance_research::mnist_data::IMAGE_DIMENSION));
+    data.add_descriptor(GAUSSIAN_7, distance_research::brief::Descriptor::gaussian_neighbor(NUM_NEIGHBORS, distance_research::mnist_data::IMAGE_DIMENSION / 7, distance_research::mnist_data::IMAGE_DIMENSION, distance_research::mnist_data::IMAGE_DIMENSION));
+    data.add_descriptor(EQUIDISTANT_BRIEF, distance_research::brief::Descriptor::equidistant(distance_research::mnist_data::IMAGE_DIMENSION, distance_research::mnist_data::IMAGE_DIMENSION, EQUIDISTANT_OFFSET, EQUIDISTANT_OFFSET));
 
     data.run_all_tests_with(&args);
 
     if args.contains(PERMUTE) {
         println!("Permuting images");
-        let permutation = permutation::read_permutation("image_permutation_file")?;
+        let permutation = distance_research::permutation::read_permutation("image_permutation_file")?;
         let mut permuted_data = data.permuted(&permutation);
         permuted_data.run_all_tests_with(&args);
         println!("Permuted results");
@@ -144,17 +131,6 @@ fn run_experiments(args: &HashSet<String>, training_images: Vec<(u8,Image)>, tes
     println!("Original results");
     data.print_errors();
     Ok(())
-}
-
-fn load_data_set(file_prefix: &str) -> io::Result<Vec<(u8,Image)>> {
-    let train_images = format!("{}{}-images-idx3-ubyte", BASE_PATH, file_prefix);
-    let train_labels = format!("{}{}-labels-idx1-ubyte", BASE_PATH, file_prefix);
-
-    let training_images = print_time_milliseconds(&format!("loading mnist {} images", file_prefix),
-        || mnist_data::init_from_files(train_images.as_str(), train_labels.as_str()))?;
-
-    println!("Number of {} images: {}", file_prefix, training_images.len());
-    Ok(training_images)
 }
 
 fn permuted_data_set(permutation: &Vec<usize>, data: &Vec<(u8,Image)>) -> Vec<(u8,Image)> {
@@ -203,7 +179,7 @@ impl ExperimentData {
         match self.descriptors.get(name) {
             Some(d) => d.clone(),
             None => {
-                panic!(format!("Descriptor {} not created", name))
+                panic!("Descriptor {} not created", name)
             }
         }
     }
@@ -214,7 +190,7 @@ impl ExperimentData {
 
     pub fn run_all_tests_with(&mut self, args: &HashSet<String>) {
         if args.contains(BASELINE) {
-            self.build_and_test_model(BASELINE, |v| v.clone(), euclidean_distance::euclidean_distance);
+            self.build_and_test_model(BASELINE, |v| v.clone(), distance_research::euclidean_distance::euclidean_distance);
         }
         if args.contains(BRIEF) {
             self.build_and_test_descriptor(BRIEF);
@@ -249,7 +225,7 @@ impl ExperimentData {
             self.build_and_test_converting_all(CONVOLUTIONAL_PYRAMID, |images| kernel_stack_all(images, &kernels, 2), KernelPyramidImage::distance);
         }
         if args.contains(SOBEL_DIST) {
-            self.build_and_test_converting_all(SOBEL_DIST, |images| images.iter().map(|(label, img)| (*label, edge_image(img))).collect(), euclidean_distance::euclidean_distance);
+            self.build_and_test_converting_all(SOBEL_DIST, |images| images.iter().map(|(label, img)| (*label, edge_image(img))).collect(), distance_research::euclidean_distance::euclidean_distance);
         }
         if args.contains(COMPARE_KERNELS) {
             self.build_and_test_converting_all(COMPARE_KERNELS, |images| images.iter().map(|(label, img)| (*label, kernelize_single_image(img, 8, 3))).collect(), best_match_distance);

@@ -2,9 +2,22 @@ use std::fs;
 use std::io;
 use std::io::Read;
 use std::ops::{AddAssign, Add};
+use crate::timing::print_time_milliseconds;
 
 pub const IMAGE_DIMENSION: usize = 28;
 pub const IMAGE_BYTES: usize = IMAGE_DIMENSION * IMAGE_DIMENSION;
+const BASE_PATH: &str = "/Users/ferrer/Desktop/mnist_data/";
+
+pub fn load_data_set(file_prefix: &str) -> io::Result<Vec<(u8,Image)>> {
+    let train_images = format!("{}{}-images-idx3-ubyte", BASE_PATH, file_prefix);
+    let train_labels = format!("{}{}-labels-idx1-ubyte", BASE_PATH, file_prefix);
+
+    let training_images = print_time_milliseconds(&format!("loading mnist {} images", file_prefix),
+                                                  || init_from_files(train_images.as_str(), train_labels.as_str()))?;
+
+    println!("Number of {} images: {}", file_prefix, training_images.len());
+    Ok(training_images)
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct Image {
