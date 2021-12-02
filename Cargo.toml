@@ -16,3 +16,4 @@ kmeans = {git = "https://github.com/gjf2a/kmeans"}
 supervised_learning = {git = "https://github.com/gjf2a/supervised_learning"}
 knn = {git = "https://github.com/gjf2a/knn"}
 iced = { version = "0.3", features = ["canvas", "tokio", "debug"] }
+bare_metal_modulo = "0.9.0"
