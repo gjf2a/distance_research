@@ -137,7 +137,7 @@ fn index_mean(images: &Vec<&Image>) -> Image {
     let mut result = Image::new();
     for (x, y) in images[0].x_y_iter() {
         let pixels_from_each = images.iter().map(|img| img.get(x, y));
-        let most_popular = mode_values(pixels_from_each).unwrap().0;
+        let most_popular = mode_values(pixels_from_each).unwrap();
         result.add(most_popular);
     }
     result
