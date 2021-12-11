@@ -26,7 +26,7 @@
 use crate::mnist_data::{Image, image_mean, Grid};
 use crate::convolutional::{extract_kernels_from, add_kernels_from_to};
 use crate::euclidean_distance::euclidean_distance;
-use hash_histogram::mode;
+use hash_histogram::mode_values;
 use std::cmp::Ordering;
 
 const KERNEL_SIZE: usize = 3;
@@ -136,7 +136,9 @@ fn index_mean(images: &Vec<&Image>) -> Image {
 
     let mut result = Image::new();
     for (x, y) in images[0].x_y_iter() {
-        result.add(mode(&mut images.iter().map(|img| img.get(x, y))));
+        let pixels_from_each = images.iter().map(|img| img.get(x, y));
+        let most_popular = mode_values(pixels_from_each).unwrap();
+        result.add(most_popular);
     }
     result
 }

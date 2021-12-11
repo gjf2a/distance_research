@@ -129,11 +129,11 @@ impl Descriptor {
         let mut counts = HashHistogram::new();
         self.pairs.iter()
             .for_each(|((x1, y1), (x2, y2))|
-                counts.bump((x1, y1, img.get(*x1, *y1) < img.get(*x2, *y2))));
+                counts.bump(&(x1, y1, img.get(*x1, *y1) < img.get(*x2, *y2))));
         let mut bits = BitArray::new();
         img.x_y_iter()
             .for_each(|(x, y)|
-                bits.add(counts.get((&x, &y, true)) > counts.get((&x, &y, false))));
+                bits.add(counts.count(&(&x, &y, true)) > counts.count(&(&x, &y, false))));
         bits
     }
 }
