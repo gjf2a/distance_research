@@ -1,9 +1,10 @@
 use bare_metal_modulo::{MNum, ModNum};
-use iced::{Element, Sandbox};
+use iced::{Element, Sandbox, Settings};
 use distance_research::mnist_data::{Image, load_data_set};
 
-fn main() {
-
+fn main() -> iced::Result {
+    println!("Loading images....");
+    Visualizer::run(Settings::default())
 }
 
 struct Visualizer {
