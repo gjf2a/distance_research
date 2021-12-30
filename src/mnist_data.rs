@@ -83,7 +83,6 @@ impl Image {
         result
     }
 
-    #[cfg(test)]
     pub fn from_vec(v: &Vec<u8>) -> Image {
         let mut result = Image::new();
         v.iter().for_each(|p| result.add(*p));
